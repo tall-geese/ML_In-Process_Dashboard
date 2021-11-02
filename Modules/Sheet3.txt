@@ -1,0 +1,33 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet3"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Private Sub Cleanup()
+    Rows("2:400").Clear  'TODO: double check, not erasing any validations or whatever here
+    Cells.NumberFormat = "@"
+End Sub
+
+Public Sub InitShopLoad()
+    Dim fso As FileSystemObject
+    Set fso = New FileSystemObject
+    Dim shopQuery As String
+    shopQuery = fso.OpenTextFile(Config.QUERY_PATH & "JobLoad.sql", ForReading).ReadAll()
+    
+    Dim results() As Variant
+    ThisWorkbook.SQLQuery shopQuery, Connections.E10
+    results = ThisWorkbook.ResultRecordSet.GetRows()
+    results = Application.Transpose(results)
+    
+    Dim testRange As Range
+    Set testRange = Range(Cells(2, 1), Cells(UBound(results, 1) + 1, UBound(results, 2)))
+    testRange = results
+    Debug.Print ("stop here")
+
+End Sub
+
+
