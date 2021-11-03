@@ -8,26 +8,244 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
 Private Sub Cleanup()
-    Rows("2:400").Clear  'TODO: double check, not erasing any validations or whatever here
+    Rows("2:100").Clear  'TODO: double check, not erasing any validations or whatever here
     Cells.NumberFormat = "@"
 End Sub
 
 Public Sub InitShopLoad()
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    Call Cleanup
+
     Dim fso As FileSystemObject
     Set fso = New FileSystemObject
     Dim shopQuery As String
     shopQuery = fso.OpenTextFile(Config.QUERY_PATH & "JobLoad.sql", ForReading).ReadAll()
     
     Dim results() As Variant
-    ThisWorkbook.SQLQuery shopQuery, Connections.E10
-    results = ThisWorkbook.ResultRecordSet.GetRows()
+    DBconnections.SQLQuery shopQuery, Connections.E10
+    results = DBconnections.ResultRecordSet.GetRows()
     results = Application.Transpose(results)
     
-    Dim testRange As Range
-    Set testRange = Range(Cells(2, 1), Cells(UBound(results, 1) + 1, UBound(results, 2)))
-    testRange = results
-    Debug.Print ("stop here")
+    Dim fillRange As Range
+    Set fillRange = Range(Cells(2, 1), Cells(UBound(results, 1) + 1, UBound(results, 2)))
+    fillRange = results
+    
+    Set fillRange = Application.Union(fillRange, fillRange.Offset(0, 2))
+    fillRange.FormatConditions.Add Type:=xlExpression, Operator:=xlEqual, _
+        Formula1:="=$V2=" & Chr(34) & "TRUE" & Chr(34)
+    fillRange.FormatConditions(1).Interior.Color = RGB(248, 203, 173)
+    
+    Call FillCustomers
+    Call SetMLReady
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+End Sub
+
+Public Sub FillCustomers()
+    Dim workingRange As Range
+    Set workingRange = Range("A2:A" & Range("A2").End(xlDown).Row)
+    
+    Dim projId As String
+    Dim cusName As String
+    Dim jobNum As String
+    Dim parseAttempt As Boolean
+    
+    For Each subcell In workingRange
+        jobNum = subcell.Offset(0, 3).Value  'JobNum
+        If subcell.Offset(0, 12).Value <> "" Then  'Value of ProjID
+            projId = subcell.Offset(0, 12).Value
+checkProj:
+            'TODO: set an error handling here
+            DBconnections.SQLQuery "SELECT pr.Character01 FROM EpicorLive10.dbo.Project pr WHERE pr.ProjectID='" & projId & "'", Connections.E10
+            If DBconnections.ResultRecordSet.EOF Then GoTo 10
+                'Get the Epicor Abbreivavtion attached to the project ID
+            cusName = DBconnections.ResultRecordSet.Fields(0)
+            If cusName = "" Then GoTo 10
+            
+checkAbbr:
+            'TODO: Different error handling here? SHould be a msg that a QE needs to add in a translation field or something
+            DBconnections.SQLQuery "SELECT ct.CustomerName FROM InspectionKiosk.dbo.CustomerTranslation ct WHERE ct.Abbreviation='" & cusName & "'", Connections.Kiosk
+                'Get the Fully Qualified name
+            If DBconnections.ResultRecordSet.EOF Then GoTo TranslateError
+            cusName = DBconnections.ResultRecordSet.Fields(0)
+            subcell.Offset(0, 20).Value = cusName
+        Else
+10
+            If parseAttempt = True Then GoTo IDError
+            If (Not (IsNumeric(Left(jobNum, 1))) And Not (IsNumeric(Mid(jobNum, 2, 1)))) Then
+                If UCase(Left(jobNum, 1)) = "R" Then
+                    If (IsNumeric(Mid(jobNum, 3, 1))) Then 'RD0000
+                        cusName = Left(jobNum, 2)
+                    Else 'RNV0000
+                        cusName = Mid(jobNum, 2, 2)
+                    End If
+                Else 'NV0000
+                    cusName = Left(jobNum, 2)
+                    If cusName = "QA" Or cusName = "ME" Then GoTo IDError 'TODO: assuming we got here with no project id, then we have to give up
+                End If
+                GoTo checkAbbr
+            Else '003671-4-1, extract the 3671
+                Dim i As Integer
+                Dim dig As String
+                Dim removedLeading As Boolean
+                Do
+                    dig = Mid(jobNume, i, 1)
+                    If IsNumeric(dig) And dig <> "0" Then   'Filters out any P's, R's or 0's leading up to the true Proj Id
+                        projId = projId & dig
+                        removedLeading = True
+                    ElseIf dig = "0" And removedLeading = True Then
+                        projId = projId & dig       'Once we have any leading 0's filtered out, its fine to include trialing 0's
+                    End If
+                    i = i + 1
+                Loop While Mid(jobNum, i, 1) <> "-"
+            End If
+                    'Set a flag to avoid inf loop
+                parseAttempt = True
+                GoTo checkProj
+        End If
+    
+nextCell:
+'reset vars
+        projId = ""
+        cusName = ""
+        cusName = ""
+        jobNum = ""
+        parseAttempt = False
+    Next subcell
+    
+    
+    Exit Sub
+    
+IDError:
+    MsgBox "We couldn't find a Customer Name for [ProjID]: " & projId & vbCrLf & "For [JobNumber]: " & jobNum _
+        & "Couldnt determine if MeasurLink job or Not, Add a Customer Name to Project Entry in E10", vbCritical
+    GoTo nextCell
+    
+TranslateError:
+    MsgBox "Found the Customer [Abbreviation]: " & cusName & " For the [JobNumber]: " & jobNum & vbCrLf & "But this couldn't be translated into a directory for Inspection Reports" _
+            & "Ask a QE to add this to the InspectionKiosk.CustomerTranslation database" & vbCrLf & vbCrLf _
+            & "Not enough information to determine if this was a MeasurLink Inspection Plan or Not", vbCritical
+    GoTo nextCell
+End Sub
+
+Public Sub SetMLReady()
+    Dim workingRange As Range
+    Set workingRange = Range("A2:A" & Range("A2").End(xlDown).Row)
+    
+    Dim jobNum As String
+    Dim partNum As String
+    Dim rev As String
+    Dim machType As String
+    
+    For Each subcell In workingRange
+        jobNum = subcell.Offset(0, 3).Value
+        partNum = subcell.Offset(0, 5).Value
+        rev = subcell.Offset(0, 6).Value
+        machType = subcell.Offset(0, 18).Value
+        
+        If IsMeasurLinkJob(jobNum, partNum, rev, machType) Then
+            subcell.Offset(0, 21).Value = "TRUE"
+        Else
+            subcell.Offset(0, 21).Value = "FALSE"
+        End If
+
+    Next subcell
 
 End Sub
 
 
+
+
+
+Function IsMeasurLinkJob(JobNumber As String, PartNumber As String, PartRev As String, MachineType As String) As Boolean
+'    Dim MachineType As String
+'    MachineType = GetAssignedProductionMachineType(JobNumber)
+    If MachineType = "" Then GoTo 10
+
+    Dim PartMeasurLinkReadySQLQuery As String
+    PartMeasurLinkReadySQLQuery = "SELECT pr.ProgramReady_c, pr.ProgramReady2_c, pr.ProgramReady3_c, pr.ProgramReady4_c, pr.ProgramReady5_c, pr.ProgramReady6_c," _
+                                & "pr.ProgramReady7_c, pr.ProgramReady8_c, pr.ProgramReady9_c, pr.ProgramReady10_c" _
+                                & " FROM EpicorLive10.dbo.PartRev pr" _
+                                & " WHERE pr.PartNum = '" & PartNumber & "' AND pr.RevisionNum = '" & PartRev & "'"
+                                
+    Dim ReadyIndexCol As Collection
+    Set ReadyIndexCol = New Collection
+    
+    'On Error GoTo 10
+    
+    DBconnections.SQLQuery queryString:=PartMeasurLinkReadySQLQuery, conn_enum:=Connections.E10
+    Dim ReadyRecordSet As ADODB.Recordset
+    Set ReadyRecordSet = DBconnections.ResultRecordSet
+    
+    If ReadyRecordSet.EOF Then GoTo 10   'No information for this part, but we may still have created an excel IR for it.
+    
+    Dim index As Integer
+    
+    For Each Field In ReadyRecordSet.Fields
+        If Field.Value = True Then
+            If index = 0 Then
+                ReadyIndexCol.Add ("")
+            Else
+                ReadyIndexCol.Add (CStr(index + 1))
+            End If
+            
+        End If
+        index = index + 1
+    Next Field
+    
+    If ReadyIndexCol.Count = 0 Then GoTo 10
+    
+    Dim MachineQuerySelect As String
+    MachineQuerySelect = "SELECT "
+    Dim MachineQueryJoins As String
+    Dim MachineQueryCriteria As String
+    MachineQueryCriteria = " WHERE pr.PartNum = '" & PartNumber & "' AND pr.RevisionNum = '" & PartRev & "'"
+    
+    
+    For ReadyIndex = 1 To ReadyIndexCol.Count
+        MachineQuerySelect = MachineQuerySelect & "ud" & ReadyIndexCol(ReadyIndex) & ".CodeDesc,"
+        MachineQueryJoins = MachineQueryJoins & " LEFT OUTER JOIN EpicorLive10.dbo.UDCodes ud" & ReadyIndexCol(ReadyIndex) & " ON pr.ProgramRsrc" & ReadyIndexCol(ReadyIndex) & "_c = ud" & ReadyIndexCol(ReadyIndex) & ".CodeID"
+        MachineQueryCriteria = MachineQueryCriteria & " AND ud" & ReadyIndexCol(ReadyIndex) & ".CodeTypeID = 'PGRMRSRC'"
+    Next ReadyIndex
+    
+    MachineQuerySelect = Left(MachineQuerySelect, Len(MachineQuerySelect) - 1) & " "
+    
+    MachineQueryFooter = " FROM EpicorLive10.dbo.PartRev pr " _
+    
+    Dim machineQuery As String
+    machineQuery = MachineQuerySelect & MachineQueryFooter & MachineQueryJoins & MachineQueryCriteria
+    
+    DBconnections.SQLQuery queryString:=machineQuery, conn_enum:=Connections.E10
+    Set MachineRecordSet = DBconnections.ResultRecordSet
+    
+    For Each Machine In MachineRecordSet.Fields
+        If Machine.Value = MachineType Then
+            IsMeasurLinkJob = True
+        End If
+    Next Machine
+                        
+10
+
+End Function
+
+
+Sub test()
+    Dim a As Range
+    Set a = Range("A2:B5")
+    Dim b As Range
+    Set b = a.Offset(0, 1)
+    Debug.Print (Application.Union(a, b).Address)
+
+End Sub
+
+
+Sub test2()
+    Dim fillRange As Range
+    Set fillRange = Range("A3:T3")
+    fillRange.FormatConditions.Add Type:=xlExpression, Operator:=xlEqual, _
+        Formula1:="=$V3=" & Chr(34) & "TRUE" & Chr(34)
+    fillRange.FormatConditions(1).Interior.Color = RGB(248, 203, 173)
+
+
+End Sub

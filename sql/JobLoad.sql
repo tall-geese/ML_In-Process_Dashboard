@@ -4,7 +4,7 @@ FROM (SELECT r.cell_c, r.Description[Machine], jo.WIStartDate[Start], jh.JobNum,
 		(jo.EstProdHours + jo.EstSetHours)[T Hrs],ROUND((((jo.RunQty - jo.QtyCompleted) * jo.ProdStandard) / 60) + jo.EstSetHours,2)[E Rem Hrs], 
 		jo.SetupPctComplete[Set%], jo.RunQty[Run Qty],  jh.ProjectID[Project ID], 
 		jo.QtyCompleted[Completed], (jo.RunQty - jo.QtyCompleted)[Remaining],
-		jo.Character01[FA Type], jh.PhaseID [Phase ID], jo.OprSeq [Op#], ROW_NUMBER()
+		jo.Character01[FA Type], jh.PhaseID [Phase ID], jo.OprSeq [Op#], r.ResourceGrpID[MachType], ROW_NUMBER()
 		OVER (PARTITION BY r.cell_c, r.Description
 				ORDER BY r.cell_c, r.Description, jo.WIStartDate ASC) [R1]
 	FROM EpicorLive10.dbo.JobOper jo 
