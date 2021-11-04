@@ -2,41 +2,57 @@ Attribute VB_Name = "ExcelConnections"
 Dim ExcelConnection As ADODB.Connection
 Dim ExcelRecordSet As ADODB.Recordset
 
-Public Function openXl()
+Public Function GetXLAQL(fpath As String) As String
     Dim connStr As String
-    connStr = "Driver={Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)};DBQ=" & "C:\Users\mdieckman\Desktop\testWB.xlsx;HDR=NO;IMEX=0"
+    
+    connStr = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" & fpath _
+                    & ";Extended Properties='Excel 12.0;HDR=NO;IMEX=1'"
+                    
+        '::Both these connection Strings worked, but they would still read in Headers, no matter what I did
+'    connStr = "Driver={Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)};DBQ=" _
+'        & tempPath & ";Extended Properties='Excel 12.0;HDR=No;IMEX=0'"
 '    connStr = "Provider=MSDASQL.1;DSN=Excel Files;DBQ=" & "C:\Users\mdieckman\Desktop\testWB.xlsx" & ";HDR=NO;"
     
+    On Error GoTo connErr
     
-'    connStr = "DRIVER={Microsoft Excel Driver (*.xls)};ReadOnly=1;DBQ=" & "C:\Users\mdieckman\Desktop\testWB.xlsx"
-'    connStr = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=C:\Users\mdieckman\Desktop\testWB.xlsx;Extended Properties=Excel 8.0"
     Set ExcelConnection = New ADODB.Connection
     ExcelConnection.Open connStr
-'    Set ExcelRecordSet = ExcelConnection.Execute("SELECT * FROM [Sheet1$A1:B1]")
-    Set ExcelRecordSet = ExcelConnection.Execute("SELECT * FROM [Sheet1$A1:A3]")
     
-    i = 0
-    While Not ExcelRecordSet.EOF
-        MsgBox ExcelRecordSet.Fields(i)
-        ExcelRecordSet.MoveNext
-    Wend
+    On Error GoTo BackupAQL  'Attempt to select from the ML Freq Chart first...
+    Set ExcelRecordSet = ExcelConnection.Execute("SELECT * FROM [ML Frequency Chart$B7:B7]")
+    If ExcelRecordSet.Fields.Count <> 0 Then
+        If IsNull(ExcelRecordSet.Fields(0)) Then
+            GoTo BackupAQL
+        Else
+            On Error GoTo NullValErr
+            GetXLAQL = ExcelRecordSet.Fields(0)
+        End If
+    Else
+        GoTo BackupAQL
+    End If
+    
     ExcelConnection.Close
     Exit Function
     
-closeWB:
+    
+BackupAQL:
+    On Error GoTo NullValErr   'If not ML Frequency chart then goto START HERE
+    Set ExcelRecordSet = ExcelConnection.Execute("SELECT * FROM [START HERE$I10:I10]")
+    GetXLAQL = ExcelRecordSet.Fields(0)
+    
     ExcelConnection.Close
+    Exit Function
+    
+connErr:
+    ExcelConnection.Close
+    Err.Raise Number:=vbObjectError + 1000, Description:="Couldnt Create a connection to the Workbook"
+
+    
+NullValErr:
+    ExcelConnection.Close
+    Err.Raise Number:=vbObjectError + 1200, Description:="Nothing Set or Garbage value set for AQL in Workbook"
+
 
 End Function
 
 
-
-'
-'Dim cn As ADODB.Connection
-'  Set cn = New ADODB.Connection
-'  With cn
-'    .Provider = "MSDASQL"
-'    .ConnectionString = "Driver={Microsoft Excel Driver (*.xls)};" & _
-'  "DBQ=C:\MyFolder\MyWorkbook.xls; ReadOnly=False;"
-'    .Open
-'  End With
-'strQuery = "SELECT * FROM [Sheet1$A1:B10]"

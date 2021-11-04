@@ -19,8 +19,21 @@
 #### Possible Logic
 1. As Jesse is clicking from job to job, the viewport so refresh the amount of inspections captured?
    1. Are we also going to be updating all of the Epicor information as well? Whenever a job is selected? This information will be updated less frequently for sure.
+   2. Whenever a job cell is selected, we need to be applying a highlight to that entire row to show that This is the job currently selected.
 2. The routines that need to be captured for inspection will be determined by the cell that the job is running on. If its a *SWISS* cell, then we should be ready to check for all FA and IP routines that do not have any 'MILL' in the name. Vice-versa for the *MILL* cells.
    1. The FA Type will also play a part in this for the FA_FIRST and FA_MINI and such....
+
+
+#### Information
+Cant capture everything on the Beginning sheet, otherwise we wont have any room for the viewports
+
+1. Machine
+1. JobNumer
+2. Part number
+3. Drawing Number
+4. Revision
+5. Part Description
+6. Status?
 
 
 

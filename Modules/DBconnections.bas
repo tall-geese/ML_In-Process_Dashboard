@@ -8,6 +8,9 @@ Public Enum Connections
     Kiosk = 1
 End Enum
 
+'****************************************************
+'*************  Connection/Query   ******************
+'****************************************************
 
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
     'Close connection before closing workbook
@@ -57,3 +60,101 @@ Public Function SQLQuery(queryString As String, conn_enum As Connections)
     ResultRecordSet.Open sqlCommand
 
 End Function
+
+
+
+
+'****************************************************
+'*************  Helper Functions   ******************
+'****************************************************
+
+
+
+Function IsMeasurLinkJob(JobNumber As String, PartNumber As String, PartRev As String, MachineType As String) As Boolean
+'    Dim MachineType As String
+'    MachineType = GetAssignedProductionMachineType(JobNumber)
+    If MachineType = "" Then GoTo 10
+
+    Dim PartMeasurLinkReadySQLQuery As String
+    PartMeasurLinkReadySQLQuery = "SELECT pr.ProgramReady_c, pr.ProgramReady2_c, pr.ProgramReady3_c, pr.ProgramReady4_c, pr.ProgramReady5_c, pr.ProgramReady6_c," _
+                                & "pr.ProgramReady7_c, pr.ProgramReady8_c, pr.ProgramReady9_c, pr.ProgramReady10_c" _
+                                & " FROM EpicorLive10.dbo.PartRev pr" _
+                                & " WHERE pr.PartNum = '" & PartNumber & "' AND pr.RevisionNum = '" & PartRev & "'"
+                                
+    Dim ReadyIndexCol As Collection
+    Set ReadyIndexCol = New Collection
+    
+    'On Error GoTo 10
+    
+    SQLQuery queryString:=PartMeasurLinkReadySQLQuery, conn_enum:=Connections.E10
+    Dim ReadyRecordSet As ADODB.Recordset
+    Set ReadyRecordSet = ResultRecordSet
+    
+    If ReadyRecordSet.EOF Then GoTo 10   'No information for this part, but we may still have created an excel IR for it.
+    
+    Dim index As Integer
+    
+    For Each Field In ReadyRecordSet.Fields
+        If Field.Value = True Then
+            If index = 0 Then
+                ReadyIndexCol.Add ("")
+            Else
+                ReadyIndexCol.Add (CStr(index + 1))
+            End If
+            
+        End If
+        index = index + 1
+    Next Field
+    
+    If ReadyIndexCol.Count = 0 Then GoTo 10
+    
+    Dim MachineQuerySelect As String
+    MachineQuerySelect = "SELECT "
+    Dim MachineQueryJoins As String
+    Dim MachineQueryCriteria As String
+    MachineQueryCriteria = " WHERE pr.PartNum = '" & PartNumber & "' AND pr.RevisionNum = '" & PartRev & "'"
+    
+    
+    For ReadyIndex = 1 To ReadyIndexCol.Count
+        MachineQuerySelect = MachineQuerySelect & "ud" & ReadyIndexCol(ReadyIndex) & ".CodeDesc,"
+        MachineQueryJoins = MachineQueryJoins & " LEFT OUTER JOIN EpicorLive10.dbo.UDCodes ud" & ReadyIndexCol(ReadyIndex) & " ON pr.ProgramRsrc" & ReadyIndexCol(ReadyIndex) & "_c = ud" & ReadyIndexCol(ReadyIndex) & ".CodeID"
+        MachineQueryCriteria = MachineQueryCriteria & " AND ud" & ReadyIndexCol(ReadyIndex) & ".CodeTypeID = 'PGRMRSRC'"
+    Next ReadyIndex
+    
+    MachineQuerySelect = Left(MachineQuerySelect, Len(MachineQuerySelect) - 1) & " "
+    
+    MachineQueryFooter = " FROM EpicorLive10.dbo.PartRev pr " _
+    
+    Dim machineQuery As String
+    machineQuery = MachineQuerySelect & MachineQueryFooter & MachineQueryJoins & MachineQueryCriteria
+    
+    SQLQuery queryString:=machineQuery, conn_enum:=Connections.E10
+    Set MachineRecordSet = ResultRecordSet
+    
+    For Each Machine In MachineRecordSet.Fields
+        If Machine.Value = MachineType Then
+            IsMeasurLinkJob = True
+        End If
+    Next Machine
+                        
+10
+
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -7,3 +7,97 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
+Dim lastCellRange As Range
+
+Public Sub Cleanup()
+    Rows("1:100").Clear
+    Cells.NumberFormat = "@"
+    Set lastCellRange = Nothing
+End Sub
+
+
+Public Sub AddCell(cellName As String)
+    If lastCellRange Is Nothing Then
+        Set lastCellRange = Range("A1")
+    Else
+        Set lastCellRange = lastCellRange.Offset(2, 0)
+    End If
+    
+    Dim headerRange As Range
+    Set headerRange = Range("A" & lastCellRange.Row & ":" & "H" & lastCellRange.Row)
+    With headerRange
+        .Font.ColorIndex = 2
+        .Font.Size = 8
+        .HorizontalAlignment = xlCenter
+        .Interior.Color = RGB(128, 128, 128)
+    End With
+    With lastCellRange
+        .Value = cellName & " cell"
+        .Font.Bold = True
+        .Font.ColorIndex = 2
+        .Font.Size = 11
+        .HorizontalAlignment = xlCenter
+    End With
+    
+    lastCellRange.Offset(0, 1).Value = "Machine"
+    lastCellRange.Offset(0, 2).Value = "Job#"
+    lastCellRange.Offset(0, 3).Value = "Drawing#"
+    lastCellRange.Offset(0, 4).Value = "Part#"
+    lastCellRange.Offset(0, 5).Value = "Rev"
+    lastCellRange.Offset(0, 6).Value = "Desc"
+    lastCellRange.Offset(0, 7).Value = "Status"
+
+
+End Sub
+
+
+Public Sub AddJob(jobInfo() As Variant)
+    'TODO: check if the lastCellRange is Nothing, in which case, we should error out
+    Set lastCellRange = lastCellRange.Offset(1, 0)
+    Dim jobRange As Range
+    Set jobRange = Range("B" & lastCellRange.Row & ":" & "H" & lastCellRange.Row)
+    jobRange = jobInfo
+    jobRange.HorizontalAlignment = xlCenter
+    
+    
+End Sub
+
+
+
+
+
+
+
+
+
+
+'-------------------------------------------------------------------------------
+'-------------------------------------------------------------------------------
+Public Sub ArrayTest()
+    Call Cleanup
+End Sub
+
+Public Sub JobTest()
+    Dim info(0 To 6) As Variant
+    info(1) = InputBox("Give Job Number")
+    info(0) = "A01"
+    info(2) = "190YYYY"
+    info(3) = "1908608"
+    info(4) = "A"
+    info(5) = "Some Kinda Screw"
+    info(6) = "Setup"
+    
+    AddJob info
+
+End Sub
+
+Public Sub CellTest()
+    Dim cell As String
+    cell = InputBox("Give Cell Letter")
+    AddCell (cell)
+
+End Sub
+
+
+
+
