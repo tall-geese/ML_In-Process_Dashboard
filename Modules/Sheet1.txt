@@ -7,12 +7,25 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
+Option Explicit
+
 Dim lastCellRange As Range
+Dim pieChart As Excel.shape
+Dim tempAddy As String
 
 Public Sub Cleanup()
-    Rows("1:100").Clear
+    Unprotect PASSWORD:=Config.PASSWORD
+    With Rows("1:100")
+        .Clear
+        .RowHeight = 18
+    End With
     Cells.NumberFormat = "@"
     Set lastCellRange = Nothing
+    
+    Dim im As Excel.shape
+    For Each im In Shapes
+        im.Delete
+    Next im
 End Sub
 
 
@@ -32,7 +45,7 @@ Public Sub AddCell(cellName As String)
         .Interior.Color = RGB(128, 128, 128)
     End With
     With lastCellRange
-        .Value = cellName & " cell"
+        .Value = cellName
         .Font.Bold = True
         .Font.ColorIndex = 2
         .Font.Size = 11
@@ -47,6 +60,7 @@ Public Sub AddCell(cellName As String)
     lastCellRange.Offset(0, 6).Value = "Desc"
     lastCellRange.Offset(0, 7).Value = "Status"
 
+    lastCellRange.EntireRow.RowHeight = 14
 
 End Sub
 
@@ -58,8 +72,109 @@ Public Sub AddJob(jobInfo() As Variant)
     Set jobRange = Range("B" & lastCellRange.Row & ":" & "H" & lastCellRange.Row)
     jobRange = jobInfo
     jobRange.HorizontalAlignment = xlCenter
+    With jobRange.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(128, 128, 128)
+        .Weight = xlThin
+    End With
+    
+    Range("G" & lastCellRange.Row).HorizontalAlignment = xlLeft
+    If lastCellRange.Offset(0, 7).Value = "[Setup]" Then
+        lastCellRange.EntireRow.Font.Color = RGB(128, 128, 128)
+    End If
+    SetPicture Range("H" & lastCellRange.Row)
     
     
+End Sub
+
+Private Sub SetPicture(Target As Range)
+    Dim picture As Object
+    Dim picAddy As String
+    Dim colorFill As Single
+    
+    Select Case Target.Value
+        Case "[Setup]"   'When setup is not 100%, There isnt going to be much to see here
+            picAddy = "https://cdn.hubblecontent.osi.office.net/icons/publish/icons_gears/gears.svg"
+            colorFill = RGB(128, 128, 128)
+        Case "[Production]"  'TODO: might get rid of this, I can usually assume that its in production
+'            picAddy = "https://cdn.hubblecontent.osi.office.net/icons/publish/icons_arrowcircle/arrowcircle.svg"
+        Case Else  'Question Mark - issue with retriveing the data
+            picAddy = "https://cdn.hubblecontent.osi.office.net/icons/publish/icons_questionmark_ltr/questionmark_ltr.svg"
+            Exit Sub
+    End Select
+    
+    Target.Value = ""
+    If picAddy = "" Then Exit Sub
+    Set picture = Shapes.AddPicture(picAddy, False, True, Top:=Target.Top, left:=Target.left + 15, Height:=20, Width:=20)
+    
+    If colorFill <> 0 Then
+        picture.Fill.ForeColor.RGB = colorFill
+    End If
+    
+End Sub
+
+Public Sub FinishTransfer()
+    Protect PASSWORD:=Config.PASSWORD
+    tempAddy = lastCellRange.Address
+End Sub
+
+
+
+Private Sub Worksheet_SelectionChange(ByVal Target As Range)
+    'TODO: temp manual setting until we figure out what to do with this missing reference
+    If Target.Areas.Count <> 1 Then Exit Sub
+    If Target.Count <> 1 Then Exit Sub
+    
+    Dim validSelection As Boolean
+
+    If lastCellRange Is Nothing Then
+        Set lastCellRange = Range("A25")
+    End If
+
+    Dim jobCell As Range
+    Dim jobRange As Range
+    Set jobRange = Range("A1:" & lastCellRange.Address).Offset(0, 1)
+    
+    
+    For Each jobCell In jobRange
+        If jobCell.Interior.Color = RGB(101, 215, 255) Then
+            Me.Unprotect Config.PASSWORD
+            Range("B" & jobCell.Row & ":" & "H" & jobCell.Row).Interior.ColorIndex = 0
+            Me.Protect Config.PASSWORD
+        End If
+
+        If Not (Application.Intersect(jobCell, Target.EntireRow) Is Nothing) And jobCell.Interior.Color <> RGB(128, 128, 128) Then
+            Me.Unprotect Config.PASSWORD
+            Range("B" & jobCell.Row & ":" & "H" & jobCell.Row).Interior.Color = RGB(101, 215, 255)
+            validSelection = True
+            
+        End If
+
+    Next jobCell
+    
+    'Get the prdHours information
+    'Maybe we set some kind of flag above that we did infact select a new job row
+    If validSelection = False Then Exit Sub
+    
+    Call DestroyCharts
+    
+    Dim jobNum As String
+    jobNum = Target.Offset(0, GetCol("Job#") - Target.Column).Value
+    Dim rowNum As Integer
+    rowNum = Sheets("ShopLoad").Range("D2:D" & Sheets("ShopLoad").Range("D2").End(xlDown).Row).Find(What:=jobNum, _
+                                            LookIn:=xlValues, MatchCase:=False, SearchFormat:=False).Row
+    Call CreatePrdHoursChart(rowNum:=rowNum)
+    
+    Me.Protect Config.PASSWORD
+
+End Sub
+
+
+Private Sub DestroyCharts()
+    Dim im As Excel.shape
+    For Each im In Me.Shapes
+        im.Delete
+    Next im
 End Sub
 
 
@@ -68,11 +183,53 @@ End Sub
 
 
 
-
-
-
 '-------------------------------------------------------------------------------
 '-------------------------------------------------------------------------------
+Public Sub CreatePrdHoursChart(rowNum As Integer)
+    Set pieChart = Me.Shapes.AddChart2(251, xlDoughnut, left:=710, Top:=ActiveWindow.VisibleRange.Top + 5, Height:=100, Width:=140)
+    
+    Application.EnableEvents = False
+    
+    pieChart.Title = ""
+    With pieChart.chart
+        .ChartTitle.Delete
+        .SetSourceData Source:=Sheets("ShopLoad").Range("$I$" & rowNum & ":$J$" & rowNum)
+        .FullSeriesCollection(1).XValues = "=ShopLoad!$I$1:$J$1"
+        .Legend.Position = xlRight
+        .Legend.Height = 40
+        .Legend.Top = 40
+        .Legend.left = 80
+        .FullSeriesCollection(1).Explosion = 4
+        .ChartGroups(1).DoughnutHoleSize = 73
+        .SetElement (msoElementDataLabelCallout)
+        .FullSeriesCollection(1).DataLabels.Select
+        Selection.ShowCategoryName = False
+        Selection.ShowValue = True
+        Selection.Format.Fill.Visible = 0
+        Selection.Format.Line.Visible = 0
+        Selection.Separator = "" & Chr(13) & ""
+        .FullSeriesCollection(1).Points(2).DataLabel.Select
+        Selection.left = 2
+        Selection.Top = 2
+        Selection.Format.Adjustments.Item(1) = -0.10332
+        Selection.Format.Adjustments.Item(2) = 0.06941
+        .FullSeriesCollection(1).Points(1).DataLabel.Select
+        Selection.left = 60
+        Selection.Top = 2
+        Selection.Format.Adjustments.Item(1) = -0.10332
+        Selection.Format.Adjustments.Item(2) = 0.06941
+    End With
+    pieChart.OnAction = "ThisWorkbook.PrdHours_Click"
+    pieChart.Name = "PrdHours"
+    
+    Application.EnableEvents = True
+    
+End Sub
+
+Public Sub nameTest()
+    MsgBox Me.Shapes("PrdHours").Height
+End Sub
+
 Public Sub ArrayTest()
     Call Cleanup
 End Sub
@@ -92,12 +249,34 @@ Public Sub JobTest()
 End Sub
 
 Public Sub CellTest()
-    Dim cell As String
-    cell = InputBox("Give Cell Letter")
-    AddCell (cell)
+    For Each chart In Me.ChartObjects
+        chart.Top = ActiveWindow.VisibleRange.Top + 5
+    Next chart
+End Sub
+
+'
+'
+'Private Sub Worksheet_SelectionChange(ByVal Target As Range)
+'    Call CellTest
+'
+'End Sub
+
+Public Sub left()
+    Application.ScreenUpdating = False
+
 
 End Sub
 
-
+'Return column # of the header
+Public Function GetCol(colName As String) As Integer
+    Dim colRange As Range
+    Set colRange = Range("A1:H1")
+    On Error Resume Next
+    GetCol = Application.WorksheetFunction.Match(colName, colRange, 0)
+    If Err.Number <> 0 Then
+        GetCol = 0
+    End If
+    On Error GoTo 0
+End Function
 
 

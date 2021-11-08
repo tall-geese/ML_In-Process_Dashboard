@@ -13,9 +13,10 @@ Private Sub Cleanup()
 End Sub
 
 Public Sub InitShopLoad()
+    Call Cleanup
+    Call Sheets("ShopStatus").Cleanup
     Application.ScreenUpdating = False
     Application.EnableEvents = False
-    Call Cleanup
 
     Dim fso As FileSystemObject
     Set fso = New FileSystemObject
@@ -41,6 +42,8 @@ Public Sub InitShopLoad()
     Call SetMLReady
     Call SetAQLforMLJobs
     Call Sheets("ShopStatus").Cleanup
+    Call SetMLJobs
+    Call Sheets("ShopStatus").FinishTransfer
     
     
     Application.ScreenUpdating = True
@@ -78,15 +81,15 @@ checkAbbr:
         Else
 10
             If parseAttempt = True Then GoTo IDError
-            If (Not (IsNumeric(Left(jobNum, 1))) And Not (IsNumeric(Mid(jobNum, 2, 1)))) Then
-                If UCase(Left(jobNum, 1)) = "R" Then
+            If (Not (IsNumeric(left(jobNum, 1))) And Not (IsNumeric(Mid(jobNum, 2, 1)))) Then
+                If UCase(left(jobNum, 1)) = "R" Then
                     If (IsNumeric(Mid(jobNum, 3, 1))) Then 'RD0000
-                        cusName = Left(jobNum, 2)
+                        cusName = left(jobNum, 2)
                     Else 'RNV0000
                         cusName = Mid(jobNum, 2, 2)
                     End If
                 Else 'NV0000
-                    cusName = Left(jobNum, 2)
+                    cusName = left(jobNum, 2)
                     If cusName = "QA" Or cusName = "ME" Then GoTo IDError 'TODO: assuming we got here with no project id, then we have to give up
                 End If
                 GoTo checkAbbr
@@ -110,7 +113,7 @@ checkAbbr:
                 GoTo checkProj
         End If
     
-nextCell:
+NextCell:
 'reset vars
         projId = ""
         cusName = ""
@@ -125,13 +128,13 @@ nextCell:
 IDError:
     MsgBox "We couldn't find a Customer Name for [ProjID]: " & projId & vbCrLf & "For [JobNumber]: " & jobNum _
         & "Couldnt determine if MeasurLink job or Not, Add a Customer Name to Project Entry in E10", vbCritical
-    GoTo nextCell
+    GoTo NextCell
     
 TranslateError:
     MsgBox "Found the Customer [Abbreviation]: " & cusName & " For the [JobNumber]: " & jobNum & vbCrLf & "But this couldn't be translated into a directory for Inspection Reports" _
             & "Ask a QE to add this to the InspectionKiosk.CustomerTranslation database" & vbCrLf & vbCrLf _
             & "Not enough information to determine if this was a MeasurLink Inspection Plan or Not", vbCritical
-    GoTo nextCell
+    GoTo NextCell
 End Sub
 
 Public Sub SetMLReady()
@@ -203,6 +206,37 @@ ExcelOLEDBerr:
 End Sub
 
 Private Sub SetMLJobs()
+    Dim workingRange As Range
+    Set workingRange = Range("A2:A" & Range("A2").End(xlDown).Row)
+    Dim lastCell As String
+    
+    For Each subCell In workingRange
+        If subCell.Offset(0, 21).Value <> "TRUE" Then GoTo NextCell
+        
+        If subCell.Value <> lastCell Then
+            lastCell = subCell.Value
+            Sheets("ShopStatus").AddCell (Mid(subCell.Value, 1, Len(subCell.Value) - 1) & " " & Mid(subCell.Value, Len(subCell.Value), 1))
+        End If
+        
+        Dim jobInfo(0 To 6) As Variant
+        With subCell
+            jobInfo(0) = left(.Offset(0, 1).Value, Len(.Offset(0, 1).Value) - 11) 'Machine
+            jobInfo(1) = .Offset(0, 3).Value 'Job#
+            jobInfo(2) = .Offset(0, 4).Value 'Draw#
+            jobInfo(3) = .Offset(0, 5).Value 'Part#
+            jobInfo(4) = .Offset(0, 6).Value 'Rev
+            jobInfo(5) = .Offset(0, 7).Value 'Description
+            If .Offset(0, 10).Value <> "100" Then
+                jobInfo(6) = "[Setup]"
+            Else
+                jobInfo(6) = "[Production]"
+            End If
+        End With
+        
+        Sheets("ShopStatus").AddJob (jobInfo)
+    
+NextCell:
+    Next subCell
     
 
 

@@ -1,7 +1,7 @@
 SELECT src.*
 FROM (SELECT r.cell_c, r.Description[Machine], jo.WIStartDate[Start], jh.JobNum,  
 		jh.DrawNum[Drawing#], jh.PartNum[Part#], jh.RevisionNum[Part Rev], jh.PartDescription[Description],
-		ROUND((((jo.QtyCompleted * jo.ProdStandard) / 60) + (jo.EstSetHours * (jo.SetupPctComplete/100))),2)[Prod Hrs],ROUND((((jo.RunQty - jo.QtyCompleted) * jo.ProdStandard) / 60) + (jo.EstSetHours - jo.EstSetHours * (jo.SetupPctComplete/100)),2)[E Rem Hrs], 
+		(jo.EstProdHours + jo.EstSetHours)[T Hrs],ROUND((((jo.RunQty - jo.QtyCompleted) * jo.ProdStandard) / 60) + (jo.EstSetHours - jo.EstSetHours * (jo.SetupPctComplete/100)),2)[E Rem Hrs], 
 		jo.SetupPctComplete[Set%], jo.RunQty[Run Qty],  jh.ProjectID[Project ID], 
 		jo.QtyCompleted[Completed], (jo.RunQty - jo.QtyCompleted)[Remaining],
 		jo.Character01[FA Type], jh.PhaseID [Phase ID], jo.OprSeq [Op#], r.ResourceGrpID[MachType], ROW_NUMBER()

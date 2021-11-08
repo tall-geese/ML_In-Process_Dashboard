@@ -121,7 +121,7 @@ Function IsMeasurLinkJob(JobNumber As String, PartNumber As String, PartRev As S
         MachineQueryCriteria = MachineQueryCriteria & " AND ud" & ReadyIndexCol(ReadyIndex) & ".CodeTypeID = 'PGRMRSRC'"
     Next ReadyIndex
     
-    MachineQuerySelect = Left(MachineQuerySelect, Len(MachineQuerySelect) - 1) & " "
+    MachineQuerySelect = left(MachineQuerySelect, Len(MachineQuerySelect) - 1) & " "
     
     MachineQueryFooter = " FROM EpicorLive10.dbo.PartRev pr " _
     
