@@ -13,6 +13,19 @@ Dim lastCellRange As Range
 Dim pieChart As Excel.shape
 Dim tempAddy As String
 
+'*************************************************************
+'*************************************************************
+'*                  ShopStatus
+'*
+'*************************************************************
+'*************************************************************
+
+
+'************************************************************
+'*************   Cleanup/Fill Routines   ********************
+'************************************************************
+
+
 Public Sub Cleanup()
     Unprotect PASSWORD:=Config.PASSWORD
     With Rows("1:100")
@@ -22,10 +35,7 @@ Public Sub Cleanup()
     Cells.NumberFormat = "@"
     Set lastCellRange = Nothing
     
-    Dim im As Excel.shape
-    For Each im In Shapes
-        im.Delete
-    Next im
+    Call DestroyCharts
 End Sub
 
 
@@ -92,6 +102,7 @@ Private Sub SetPicture(Target As Range)
     Dim picAddy As String
     Dim colorFill As Single
     
+        'TODO: we want to establish a warning sign based on the desired amount of inspections to alert the PQCI
     Select Case Target.Value
         Case "[Setup]"   'When setup is not 100%, There isnt going to be much to see here
             picAddy = "https://cdn.hubblecontent.osi.office.net/icons/publish/icons_gears/gears.svg"
@@ -118,6 +129,25 @@ Public Sub FinishTransfer()
     tempAddy = lastCellRange.Address
 End Sub
 
+Public Sub DestroyCharts()
+    Me.Unprotect PASSWORD:=Config.PASSWORD
+
+    On Error Resume Next
+    Me.Shapes("PrdHours").Delete
+'    Dim im As Excel.shape
+'    For Each im In Me.Shapes
+'        im.Delete
+'    Next im
+    
+    Set pieChart = Nothing
+End Sub
+
+
+
+'************************************************************
+'****************   Event Callbacks   ***********************
+'************************************************************
+
 
 
 Private Sub Worksheet_SelectionChange(ByVal Target As Range)
@@ -125,147 +155,210 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
     If Target.Areas.Count <> 1 Then Exit Sub
     If Target.Count <> 1 Then Exit Sub
     
+    
     Dim validSelection As Boolean
 
+    'TODO dont hardset the range here, must find it manually
     If lastCellRange Is Nothing Then
         Set lastCellRange = Range("A25")
     End If
-
-    Dim jobCell As Range
-    Dim jobRange As Range
-    Set jobRange = Range("A1:" & lastCellRange.Address).Offset(0, 1)
+    
+    On Error GoTo selectionErr
+    
+    Me.Unprotect Config.PASSWORD
     
     
-    For Each jobCell In jobRange
-        If jobCell.Interior.Color = RGB(101, 215, 255) Then
-            Me.Unprotect Config.PASSWORD
-            Range("B" & jobCell.Row & ":" & "H" & jobCell.Row).Interior.ColorIndex = 0
-            Me.Protect Config.PASSWORD
-        End If
-
-        If Not (Application.Intersect(jobCell, Target.EntireRow) Is Nothing) And jobCell.Interior.Color <> RGB(128, 128, 128) Then
-            Me.Unprotect Config.PASSWORD
-            Range("B" & jobCell.Row & ":" & "H" & jobCell.Row).Interior.Color = RGB(101, 215, 255)
-            validSelection = True
+        'If user selected information about the active job in the Viewport
+    If Not (Application.Intersect(Range("K2:K8"), Target) Is Nothing) Then
+        Range("J2:J8").Value = ""
+        Target.Offset(0, -1).Value = ">"
+        Range("K2:N8").Interior.ColorIndex = 0
+        Range(Target.Address & ":N" & Target.Row).Interior.Color = RGB(101, 215, 255)
+        
+    
+    Else  'If user selected a new job Row
+        Dim jobCell As Range
+        Dim jobRange As Range
+        Set jobRange = Range("A1:" & lastCellRange.Address).Offset(0, 1)
+        
+        
+        For Each jobCell In jobRange
+                'reset previously highlighted cells to blank
+            If jobCell.Interior.Color = RGB(101, 215, 255) Then
+                Range("B" & jobCell.Row & ":" & "H" & jobCell.Row).Interior.ColorIndex = 0
+            End If
+    
+                'set the intersection row of the selected job to blue bg
+            If Not (Application.Intersect(jobCell, Target.EntireRow) Is Nothing) And jobCell.Interior.Color <> RGB(128, 128, 128) Then
+                Range("B" & jobCell.Row & ":" & "H" & jobCell.Row).Interior.Color = RGB(101, 215, 255)
+                validSelection = True
+            End If
+    
+        Next jobCell
+        
+        If validSelection = False Then GoTo 10  'If they selected a header or something then leave after unsetting the previous selection
+        
+        Dim jobNum As String
+        jobNum = Target.Offset(0, GetCol("Job#") - Target.Column).Value
+        If jobNum = "" Then GoTo 10
+        Dim rowNum As Integer
+        rowNum = Sheets("ShopLoad").Range("D2:D" & Sheets("ShopLoad").Range("D2").End(xlDown).Row).Find(What:=jobNum, _
+                                                LookIn:=xlValues, MatchCase:=False, SearchFormat:=False).Row
+                                                
+        'TODO: Add in a call to the JobView port to update its information
+        Call updatedJobInfo(rowNumber:=rowNum)
+                                                
+                                                
+        'TODO: this will end up being replaced with a call to select the Hours Remaining Row of the newly added job
+        'which will implicity call the update to the pie chart for the Hours of production
+        Call CreatePrdHoursChart(rowNum:=rowNum)
             
-        End If
-
-    Next jobCell
+        
+    End If
     
-    'Get the prdHours information
-    'Maybe we set some kind of flag above that we did infact select a new job row
-    If validSelection = False Then Exit Sub
     
-    Call DestroyCharts
     
-    Dim jobNum As String
-    jobNum = Target.Offset(0, GetCol("Job#") - Target.Column).Value
-    Dim rowNum As Integer
-    rowNum = Sheets("ShopLoad").Range("D2:D" & Sheets("ShopLoad").Range("D2").End(xlDown).Row).Find(What:=jobNum, _
-                                            LookIn:=xlValues, MatchCase:=False, SearchFormat:=False).Row
-    Call CreatePrdHoursChart(rowNum:=rowNum)
+10
     
     Me.Protect Config.PASSWORD
+    Exit Sub
+    
+selectionErr:
+    GoTo 10
+
+End Sub
+
+'************************************************************
+'****************   JobInfo Viewport   **********************
+'************************************************************
+Private Sub updatedJobInfo(rowNumber As Integer)
+    Dim indRange As Range
+    Set indRange = Sheets("ShopLoad").Range("A" & rowNumber)
+    
+    Range("K1").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("JobNum") - indRange.Column).Value  'Job# Header
+    Range("K3").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("FA Type") - indRange.Column).Value
+    Range("M3").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Set%") - indRange.Column).Value & "%"
+    
+    If Range("M3").Value = "100%" Then
+        Range("N3").Value = "þ"
+    Else
+        Range("N3").Value = "o"
+    End If
+    
+    Range("N5").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("AQL") - indRange.Column).Value
+    Range("K7").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Qty Complete") - indRange.Column).Value
+    Range("M7").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Run Qty") - indRange.Column).Value
+    Range("N8").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Est Rem Hrs") - indRange.Column).Value
 
 End Sub
 
 
-Private Sub DestroyCharts()
-    Dim im As Excel.shape
-    For Each im In Me.Shapes
-        im.Delete
-    Next im
-End Sub
 
+'************************************************************
+'****************   Chart  Routines   ***********************
+'************************************************************
 
-
-
-
-
-
-'-------------------------------------------------------------------------------
-'-------------------------------------------------------------------------------
 Public Sub CreatePrdHoursChart(rowNum As Integer)
-    Set pieChart = Me.Shapes.AddChart2(251, xlDoughnut, left:=710, Top:=ActiveWindow.VisibleRange.Top + 5, Height:=100, Width:=140)
-    
+
+
+    'TODO: we are disabling events here because of selecting the charts
+        'but prob want to do this at a higher level since we'll be adding/changin multiple charts
     Application.EnableEvents = False
+    Application.ScreenUpdating = False
     
-    pieChart.Title = ""
-    With pieChart.chart
-        .ChartTitle.Delete
-        .SetSourceData Source:=Sheets("ShopLoad").Range("$I$" & rowNum & ":$J$" & rowNum)
-        .FullSeriesCollection(1).XValues = "=ShopLoad!$I$1:$J$1"
-        .Legend.Position = xlRight
-        .Legend.Height = 40
-        .Legend.Top = 40
-        .Legend.left = 80
-        .FullSeriesCollection(1).Explosion = 4
-        .ChartGroups(1).DoughnutHoleSize = 73
-        .SetElement (msoElementDataLabelCallout)
-        .FullSeriesCollection(1).DataLabels.Select
-        Selection.ShowCategoryName = False
-        Selection.ShowValue = True
-        Selection.Format.Fill.Visible = 0
-        Selection.Format.Line.Visible = 0
+    If pieChart Is Nothing Then
+        'If we haven't made a chart yet
+            'Create new at the top left of the DashView
+        Set pieChart = Me.Shapes.AddChart2(-1, xlDoughnutExploded, left:=891, Top:=ActiveWindow.VisibleRange.Top + 5, Height:=100, Width:=140)
+        pieChart.Title = ""
+        
+        With pieChart.Chart
+            .ChartTitle.Delete
+            .SeriesCollection(1).XValues = Sheets("ShopLoad").Range("$I$1:$J$1").Value
+            .SeriesCollection(1).Values = Sheets("ShopLoad").Range("$I$" & rowNum & ":$J$" & rowNum)
+            .SeriesCollection(1).Points(1).Format.Fill.ForeColor.RGB = Config.COLOR_PURPLE
+            .SeriesCollection(1).Points(2).Format.Fill.ForeColor.RGB = Config.COLOR_BLUE
+            .SeriesCollection(1).ApplyDataLabels HasLeaderLines:=False, ShowSeriesName:=False, ShowCategoryName:=False, ShowPercentage:=True, ShowValue:=True
+            .ChartGroups(1).DoughnutHoleSize = 73
+            .Legend.Position = xlRight
+            .Legend.Height = 40
+            .Legend.Top = 40
+            .Legend.left = 80
+            .SeriesCollection(1).DataLabels.Select
+            Selection.Format.Fill.Visible = 0
+            Selection.Format.Line.Visible = 0
+            
+        End With
+    Else
+        'If we already have a chart
+            'Reset the Hours with the values from the new job
+        pieChart.Chart.SeriesCollection(1).Values = Sheets("ShopLoad").Range("$I$" & rowNum & ":$J$" & rowNum)
+        pieChart.Chart.SeriesCollection(1).ApplyDataLabels HasLeaderLines:=False, ShowSeriesName:=False, ShowCategoryName:=False, ShowValue:=True, ShowPercentage:=True
+    End If
+    
+        'New/Update Parameters
+            'have to reset some values of the datalabels regardless of new/used chart
+    With pieChart.Chart
+        .SeriesCollection(1).Points(1).Format.Fill.ForeColor.RGB = Config.COLOR_PURPLE  'Todo: instead we should ask an outside function to do this
+        .SeriesCollection(1).Points(2).Format.Fill.ForeColor.RGB = Config.COLOR_BLUE
+        .SeriesCollection(1).Explosion = 4
+        .SeriesCollection(1).DataLabels.Select
         Selection.Separator = "" & Chr(13) & ""
-        .FullSeriesCollection(1).Points(2).DataLabel.Select
-        Selection.left = 2
-        Selection.Top = 2
-        Selection.Format.Adjustments.Item(1) = -0.10332
-        Selection.Format.Adjustments.Item(2) = 0.06941
-        .FullSeriesCollection(1).Points(1).DataLabel.Select
-        Selection.left = 60
-        Selection.Top = 2
-        Selection.Format.Adjustments.Item(1) = -0.10332
-        Selection.Format.Adjustments.Item(2) = 0.06941
+        .SeriesCollection(1).Points(2).DataLabel.Select
+        Selection.left = 0
+        Selection.Top = 0
+        Selection.Width = 40
+        Selection.Height = 25
+        .SeriesCollection(1).Points(1).DataLabel.Select
+        Selection.left = 40
+        Selection.Top = 0
+        Selection.Width = 40
+        Selection.Height = 25
     End With
-    pieChart.OnAction = "ThisWorkbook.PrdHours_Click"
+'    pieChart.OnAction = "ThisWorkbook.PrdHours_Click"
     pieChart.Name = "PrdHours"
     
+    
+    'TODO: again, this should prob be at a higher level
     Application.EnableEvents = True
+    Application.ScreenUpdating = True
     
 End Sub
 
-Public Sub nameTest()
-    MsgBox Me.Shapes("PrdHours").Height
-End Sub
-
-Public Sub ArrayTest()
-    Call Cleanup
-End Sub
-
-Public Sub JobTest()
-    Dim info(0 To 6) As Variant
-    info(1) = InputBox("Give Job Number")
-    info(0) = "A01"
-    info(2) = "190YYYY"
-    info(3) = "1908608"
-    info(4) = "A"
-    info(5) = "Some Kinda Screw"
-    info(6) = "Setup"
+Public Sub CreateProdQtyChart()
+    Me.Unprotect PASSWORD:=Config.PASSWORD
     
-    AddJob info
+    Dim myChart As shape
+    Set myChart = Me.Shapes.AddChart2(-1, xlLineMarkers, left:=650, Top:=ActiveWindow.VisibleRange.Top + 360, Height:=170, Width:=415)
+'    myChart.Title = "dcasdfc"
+    myChart.Chart.ChartTitle.Text = "Production Qty Submitted"
+    
+    With myChart.Chart
+'        .ChartTitle.Delete
+        .SeriesCollection.NewSeries
+        .SeriesCollection(1).Values = Sheets("ProdInfo").Range("$B$1:$B$16")
+        .SeriesCollection(1).XValues = Sheets("ProdInfo").Range("$A$1:$A$16").Value
+        .ApplyChartTemplate ("C:\Users\mdieckman\AppData\Roaming\Microsoft\Templates\Charts\LineSeries.crtx")
+    End With
+    
+    myChart.Name = "TempName"
+    
+End Sub
+
+Public Sub destroyNewChart()
+    Me.Unprotect PASSWORD:=Config.PASSWORD
+    On Error Resume Next
+    Me.Shapes("TempName").Delete
+    Me.Protect PASSWORD:=Config.PASSWORD
+
 
 End Sub
 
-Public Sub CellTest()
-    For Each chart In Me.ChartObjects
-        chart.Top = ActiveWindow.VisibleRange.Top + 5
-    Next chart
-End Sub
 
-'
-'
-'Private Sub Worksheet_SelectionChange(ByVal Target As Range)
-'    Call CellTest
-'
-'End Sub
+'************************************************************
+'****************   Helper Functions   **********************
+'************************************************************
 
-Public Sub left()
-    Application.ScreenUpdating = False
-
-
-End Sub
 
 'Return column # of the header
 Public Function GetCol(colName As String) As Integer

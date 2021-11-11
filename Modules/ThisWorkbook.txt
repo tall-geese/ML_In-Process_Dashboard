@@ -8,20 +8,32 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
 
-
-
 Private Sub Workbook_Open()
     'PopulateShopLoad
+    Call Sheets("ShopStatus").DestroyCharts
+    Sheets("ShopStatus").Protect PASSWORD:=Config.PASSWORD
+    
+   
     result = MsgBox("Would you like to refresh the shop load?", vbYesNo)
     If result = vbYes Then
         Set ws = Worksheets("ShopLoad")
         ws.Activate
         Call ws.InitShopLoad
+    Else
         
     End If
+    
+    
 End Sub
 
 
-Public Sub PrdHours_Click()
-    MsgBox "hello"
+
+Private Sub Events()
+    Application.EnableEvents = True
+
+End Sub
+
+Private Sub DisableEvents()
+    Application.EnableEvents = False
+
 End Sub

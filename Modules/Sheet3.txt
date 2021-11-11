@@ -245,5 +245,16 @@ End Sub
 
 
 
+'Return column # of the header
+Public Function GetCol(colName As String) As Integer
+    Dim colRange As Range
+    Set colRange = Range("A1:W1")
+    On Error Resume Next
+    GetCol = Application.WorksheetFunction.Match(colName, colRange, 0)
+    If Err.Number <> 0 Then
+        GetCol = 0
+    End If
+    On Error GoTo 0
+End Function
 
 

@@ -8,7 +8,7 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Public shape As Excel.shape
-Public WithEvents cht As Excel.chart
+Public WithEvents cht As Excel.Chart
 Attribute cht.VB_VarHelpID = -1
 
 'Private Sub cht_Select(ByVal ElementID As Long, ByVal Arg1 As Long, ByVal Arg2 As Long)
