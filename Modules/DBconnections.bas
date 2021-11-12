@@ -3,6 +3,7 @@ Dim E10DatabaseConnection As ADODB.Connection
 Dim KioskDatabaseConnection As ADODB.Connection
 Public ResultRecordSet As ADODB.Recordset
 Dim sqlCommand As ADODB.Command
+Dim fso As FileSystemObject
 Public Enum Connections
     E10 = 0
     Kiosk = 1
@@ -50,17 +51,86 @@ Private Function GetConnection(conn_enum As Connections) As ADODB.Connection
 End Function
 
 
-Public Function SQLQuery(queryString As String, conn_enum As Connections)
+Public Function SQLQuery(queryString As String, conn_enum As Connections, params() As Variant)
     Call InitConnection
     Set ResultRecordSet = New ADODB.Recordset
     Set sqlCommand = New ADODB.Command
-    sqlCommand.ActiveConnection = GetConnection(conn_enum)
+    With sqlCommand
+        .ActiveConnection = GetConnection(conn_enum)
+        .CommandType = adCmdText
+        .CommandText = queryString
+        
+        'Params structure
+        'params(0) = "jh.JoNum,'NV1452'"
+        If (Not params) = -1 Then GoTo 10  'If we have an empty array of parameters
+        
+        For i = 0 To UBound(params)
+            Dim queryParam As ADODB.Parameter
+            Set queryParam = .CreateParameter(Name:=Split(params(i), ",")(0), Type:=adVarChar, Size:=255, Direction:=adParamInput, Value:=Split(params(i), ",")(1))
+            .Parameters.Append queryParam
+        Next i
+    End With
     
+10
     sqlCommand.CommandText = queryString
     ResultRecordSet.Open sqlCommand
+    
+End Function
+
+
+'****************************************************
+'*************  Public Functions   ******************
+'****************************************************
+
+Public Function GetShopLoadInfo() As Variant()
+    Set fso = New FileSystemObject
+    Dim query As String
+    Dim params() As Variant
+    
+    query = fso.OpenTextFile(Config.QUERY_PATH & "JobLoad.sql", ForReading).ReadAll()
+    
+    'TODO:set the onError
+    Call SQLQuery(queryString:=query, conn_enum:=Connections.E10, params:=params)
+    
+    'TODO: something here to check EOF
+    GetShopLoadInfo = ResultRecordSet.GetRows()
 
 End Function
 
+
+
+Public Function GetProductionInfo(jobNum As String, opNum As String) As Variant()
+    Set fso = New FileSystemObject
+    Dim query As String
+    Dim params() As Variant
+    
+    query = Split(fso.OpenTextFile(Config.QUERY_PATH & "ProductionInfo.sql", ForReading).ReadAll(), ";")(0)
+    params = Array("ld.JobNum," & jobNum, "ld.OprSeq," & opNum)
+    
+    'TODO:set the onError
+    Call SQLQuery(queryString:=query, conn_enum:=Connections.E10, params:=params)
+    
+    'TODO: something here to check EOF
+    GetProductionInfo = ResultRecordSet.GetRows()
+
+End Function
+
+Public Function GetProductionInfoSUM(jobNum As String, opNum As String) As Variant()
+    Set fso = New FileSystemObject
+    Dim query As String
+    Dim params() As Variant
+    
+    query = Split(fso.OpenTextFile(Config.QUERY_PATH & "ProductionInfo.sql", ForReading).ReadAll(), ";")(1)
+    params = Array("ld.JobNum," & jobNum, "ld.OprSeq," & opNum)
+    
+    
+    'TODO:set the onError
+    Call SQLQuery(queryString:=query, conn_enum:=Connections.E10, params:=params)
+    
+    'TODO: something here to check EOF
+    GetProductionInfoSUM = ResultRecordSet.GetRows()
+
+End Function
 
 
 
@@ -71,8 +141,6 @@ End Function
 
 
 Function IsMeasurLinkJob(JobNumber As String, PartNumber As String, PartRev As String, MachineType As String) As Boolean
-'    Dim MachineType As String
-'    MachineType = GetAssignedProductionMachineType(JobNumber)
     If MachineType = "" Then GoTo 10
 
     Dim PartMeasurLinkReadySQLQuery As String

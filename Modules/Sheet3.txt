@@ -17,15 +17,9 @@ Public Sub InitShopLoad()
     Call Sheets("ShopStatus").Cleanup
     Application.ScreenUpdating = False
     Application.EnableEvents = False
-
-    Dim fso As FileSystemObject
-    Set fso = New FileSystemObject
-    Dim shopQuery As String
-    shopQuery = fso.OpenTextFile(Config.QUERY_PATH & "JobLoad.sql", ForReading).ReadAll()
     
     Dim results() As Variant
-    DBconnections.SQLQuery shopQuery, Connections.E10
-    results = DBconnections.ResultRecordSet.GetRows()
+    results = DBconnections.GetShopLoadInfo()
     results = Application.Transpose(results)
     
     Dim fillRange As Range
@@ -35,7 +29,7 @@ Public Sub InitShopLoad()
     Set fillRange = Application.Union(fillRange, fillRange.Offset(0, 3))
     fillRange.FormatConditions.Add Type:=xlExpression, Operator:=xlEqual, _
         Formula1:="=$V2=" & Chr(34) & "TRUE" & Chr(34)
-    fillRange.FormatConditions(1).Interior.Color = RGB(248, 203, 173)
+    fillRange.FormatConditions(1).Interior.color = RGB(248, 203, 173)
     fillRange.HorizontalAlignment = xlCenter
     
     Call FillCustomers

@@ -52,7 +52,7 @@ Public Sub AddCell(cellName As String)
         .Font.ColorIndex = 2
         .Font.Size = 8
         .HorizontalAlignment = xlCenter
-        .Interior.Color = RGB(128, 128, 128)
+        .Interior.color = RGB(128, 128, 128)
     End With
     With lastCellRange
         .Value = cellName
@@ -84,13 +84,13 @@ Public Sub AddJob(jobInfo() As Variant)
     jobRange.HorizontalAlignment = xlCenter
     With jobRange.Borders(xlEdgeBottom)
         .LineStyle = xlContinuous
-        .Color = RGB(128, 128, 128)
+        .color = RGB(128, 128, 128)
         .Weight = xlThin
     End With
     
     Range("G" & lastCellRange.Row).HorizontalAlignment = xlLeft
     If lastCellRange.Offset(0, 7).Value = "[Setup]" Then
-        lastCellRange.EntireRow.Font.Color = RGB(128, 128, 128)
+        lastCellRange.EntireRow.Font.color = RGB(128, 128, 128)
     End If
     SetPicture Range("H" & lastCellRange.Row)
     
@@ -173,7 +173,7 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
         Range("J2:J8").Value = ""
         Target.Offset(0, -1).Value = ">"
         Range("K2:N8").Interior.ColorIndex = 0
-        Range(Target.Address & ":N" & Target.Row).Interior.Color = RGB(101, 215, 255)
+        Range(Target.Address & ":N" & Target.Row).Interior.color = RGB(101, 215, 255)
         
     
     Else  'If user selected a new job Row
@@ -184,13 +184,13 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
         
         For Each jobCell In jobRange
                 'reset previously highlighted cells to blank
-            If jobCell.Interior.Color = RGB(101, 215, 255) Then
+            If jobCell.Interior.color = RGB(101, 215, 255) Then
                 Range("B" & jobCell.Row & ":" & "H" & jobCell.Row).Interior.ColorIndex = 0
             End If
     
                 'set the intersection row of the selected job to blue bg
-            If Not (Application.Intersect(jobCell, Target.EntireRow) Is Nothing) And jobCell.Interior.Color <> RGB(128, 128, 128) Then
-                Range("B" & jobCell.Row & ":" & "H" & jobCell.Row).Interior.Color = RGB(101, 215, 255)
+            If Not (Application.Intersect(jobCell, Target.EntireRow) Is Nothing) And jobCell.Interior.color <> RGB(128, 128, 128) Then
+                Range("B" & jobCell.Row & ":" & "H" & jobCell.Row).Interior.color = RGB(101, 215, 255)
                 validSelection = True
             End If
     
@@ -336,8 +336,8 @@ Public Sub CreateProdQtyChart()
     With myChart.Chart
 '        .ChartTitle.Delete
         .SeriesCollection.NewSeries
-        .SeriesCollection(1).Values = Sheets("ProdInfo").Range("$B$1:$B$16")
-        .SeriesCollection(1).XValues = Sheets("ProdInfo").Range("$A$1:$A$16").Value
+        .SeriesCollection(1).Values = Sheets("ProdInfo").Range("$B$2:$B$16")
+        .SeriesCollection(1).XValues = Sheets("ProdInfo").Range("$A$2:$A$16").Value
         .ApplyChartTemplate ("C:\Users\mdieckman\AppData\Roaming\Microsoft\Templates\Charts\LineSeries.crtx")
     End With
     

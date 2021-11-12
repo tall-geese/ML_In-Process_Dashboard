@@ -37,3 +37,20 @@ Private Sub DisableEvents()
     Application.EnableEvents = False
 
 End Sub
+
+Private Sub printColor()
+    Debug.Print (RGB(161, 255, 10) & " lime green" & vbCrLf)
+
+End Sub
+
+Private Sub test()
+
+    Dim a() As Variant
+    a = Array()
+    
+    If (Not a) = -1 Then
+        MsgBox "yes"
+    End If
+
+
+End Sub

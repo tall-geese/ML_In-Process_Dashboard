@@ -1,0 +1,214 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet2"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Option Explicit
+
+
+Public Sub Clear()
+    Cells.Clear
+End Sub
+
+    'Called by Shop Status, used for generating LaborQty Time Series
+    'Finds or Generates the Data needed. Returns the range of the Dates (XValues)
+        'Also sets the colors for the given employees
+Public Function GetProductionLaborData(jobNum As String, opNum As String, ByRef colors() As Variant) As Range '-> XValues
+
+        'Should be an empty array that we are populating
+    If Not Not colors Then Exit Function
+    
+        'If we have no jobs yet...
+    Dim jobInd As Range
+    If Range("B1").Value = "" Then
+        Set jobInd = Range("B1")
+        GoTo 10
+    End If
+    
+        'Find the position of the job information
+    Set jobInd = Range("B1:B" & Range("B1").End(xlDown).Row).Find(What:=jobNum, MatchCase:=False)
+    
+    If jobInd Is Nothing Then
+            'If we didnt find anything then get the next spot ready and set the information
+            'TODO: catch an error in the event that we returned no rows
+        Set jobInd = Range("B" & Range("B1").End(xlDown).Row + 1)
+10
+        Call LoadProdLaborData(targetRange:=jobInd, jobNum:=jobNum, opNum:=opNum)
+    End If
+    
+    If jobInd.Offset(1, -1).Value <> "" And jobInd.Offset(2, -1).Value <> "" Then
+        Set GetProductionLaborData = Range(jobInd.Offset(1, -1), jobInd.Offset(1, -1).End(xlDown))
+    ElseIf jobInd.Offset(1, -1).Value <> "" And jobInd.Offset(2, -1).Value = "" Then
+        Set GetProductionLaborData = jobInd.Offset(1, -1)
+    ElseIf jobInd.Offset(1, -1).Value = "" Then
+        'TODO: Err.Raise
+    End If
+    
+    'We need to return the range of Time Values and set the colors
+    'Call to other helper function for Get the Range of the SUM Aggregate data
+        'We wil need to do this anyway
+    'Get Ready to Catch an Error
+    Dim distEmps As Range
+    Set distEmps = GetProductionLaborDataSUM(jobNum:=jobNum)
+    
+        'Create a ?x3 Array of
+            'Emp, Sum Qty Produced, Color
+    Dim tempRange As Range
+    Set tempRange = Application.Union(distEmps, distEmps.Offset(0, 1), distEmps.Offset(0, 2))
+    colors = tempRange
+    
+    
+End Function
+
+    'Returns range of Unique Employees who submitted data
+Public Function GetProductionLaborDataSUM(jobNum As String) As Range  '-> XValues
+    If Range("B1").Value = "" Then
+        'Raise an error
+    ElseIf Range("B1").Value = "" Then
+        'Raise an error
+    End If
+
+    Dim jobInd As Range
+    Set jobInd = Range("B1:B" & Range("B1").End(xlDown).Row).Find(What:=jobNum, MatchCase:=False)
+
+    If jobInd Is Nothing Then
+        'Raise an error
+    End If
+
+    If jobInd.Offset(1, 2).Value <> "" And jobInd.Offset(2, 2).Value <> "" Then
+        Set GetProductionLaborDataSUM = Range(jobInd.Offset(1, 2), jobInd.Offset(1, 2).End(xlDown))
+    ElseIf jobInd.Offset(1, 2).Value <> "" And jobInd.Offset(2, 2).Value = "" Then
+        Set GetProductionLaborDataSUM = jobInd.Offset(1, 2)
+    ElseIf jobInd.Offset(1, 2).Value = "" Then
+        'TODO: Err.Raise
+    End If
+    
+
+End Function
+
+
+    'Called by GetProductionLaborData,
+        'Sets jobInformation from sql Query
+Private Sub LoadProdLaborData(targetRange As Range, jobNum As String, opNum As String)
+    
+        'Set the time series of
+    targetRange.Value = jobNum
+    Dim resultArr() As Variant
+        'TODO: ready to capture an error in the event that there is no production, like setup perhaps
+    resultArr = DBconnections.GetProductionInfo(jobNum:=jobNum, opNum:=opNum)
+    resultArr = Application.WorksheetFunction.Transpose(resultArr)
+    
+    
+    Dim fillRange As Range
+    Set fillRange = Range(Cells(targetRange.Row + 1, 1), Cells(UBound(resultArr, 1) + targetRange.Row, UBound(resultArr, 2)))
+    fillRange = resultArr
+    
+    
+        'Set the total sum of laborQty by employee for the pie chart
+    With targetRange
+        .Offset(0, 2).Value = "Emp"
+        .Offset(0, 3).Value = "Total Qty"
+        .Offset(0, 4).Value = "Color"
+    End With
+    
+        'Get the SUM of All submitted parts by employee
+    Dim aggResultArr() As Variant
+    aggResultArr = DBconnections.GetProductionInfoSUM(jobNum:=jobNum, opNum:=opNum)
+    aggResultArr = Application.WorksheetFunction.Transpose(aggResultArr)
+    
+    Dim aggFillRange As Range
+    Set aggFillRange = Range(Cells(targetRange.Row + 1, 4), Cells(UBound(aggResultArr, 1) + targetRange.Row, UBound(aggResultArr, 2) + 3))
+    aggFillRange = aggResultArr
+    
+    Dim subCell As Range
+    Dim i As Integer
+    i = 0
+            'For each unique Employee associate a color code with them
+    For Each subCell In Range("D" & targetRange.Row & ":D" & Range("D" & targetRange.Row).End(xlDown).Row)
+        Dim color As Long
+        Select Case i
+            Case 0
+                'Skip adding to the header
+            Case 1
+                color = Config.COLOR_1
+            Case 2
+                color = Config.COLOR_2
+            Case 3
+                color = Config.COLOR_3
+            Case 4
+                color = Config.COLOR_4
+            Case 5
+                color = Config.COLOR_5
+            Case 6
+                color = Config.COLOR_6
+            Case 7
+                color = Config.COLOR_7
+            Case 8
+                color = Config.COLOR_8
+            Case 9
+                color = Config.COLOR_9
+            Case 10
+                color = Config.COLOR_10
+            Case Else:
+                color = RGB(0, 0, 0)
+        End Select
+            i = i + 1
+            If color <> 0 Then subCell.Offset(0, 2).Value = color
+    Next subCell
+
+End Sub
+
+
+
+'******   Testing ************
+
+
+
+Private Sub testLoad()
+    'GetProductionLaborData
+    Dim dateRange As Range
+    Dim colors() As Variant
+    
+    Set dateRange = GetProductionLaborData(jobNum:="NV16716", opNum:="10", colors:=colors)
+
+    MsgBox "hello"
+
+End Sub
+
+
+
+Private Sub testUnion()
+    Dim colors() As Variant
+    Dim empRange As Range
+    Dim colorRange As Range
+    Dim tempRange As Range
+    
+    Set empRange = Range("D21:D26")
+    Dim subCell As Range
+    
+    Set tempRange = Application.Union(empRange, empRange.Offset(0, 1), empRange.Offset(0, 2))
+
+    colors = tempRange
+'    colors = Range("D21:E26")
+    
+    MsgBox "test"
+    
+    
+End Sub
+
+Private Sub ArrTest()
+    Dim a() As Variant
+    ReDim Preserve a(0)
+    
+    If Not Not a Then
+        MsgBox "this was initailized"
+    End If
+
+
+
+End Sub
+
