@@ -34,7 +34,7 @@ Public Function GetProductionLaborData(jobNum As String, opNum As String, ByRef 
     
     If jobInd Is Nothing Then
             'If we didnt find anything then get the next spot ready and set the information
-            'TODO: catch an error in the event that we returned no rows
+                'TODO: catch an error in the event that we returned no rows
         Set jobInd = Range("B" & Range("B1").End(xlDown).Row + 1)
 10
         Call LoadProdLaborData(targetRange:=jobInd, jobNum:=jobNum, opNum:=opNum)

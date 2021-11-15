@@ -44,7 +44,7 @@ Public Sub InitShopLoad()
     Application.EnableEvents = True
 End Sub
 
-Public Sub FillCustomers()
+Private Sub FillCustomers()
     Dim workingRange As Range
     Set workingRange = Range("A2:A" & Range("A2").End(xlDown).Row)
     
@@ -131,7 +131,7 @@ TranslateError:
     GoTo NextCell
 End Sub
 
-Public Sub SetMLReady()
+Private Sub SetMLReady()
     Dim workingRange As Range
     Set workingRange = Range("A2:A" & Range("A2").End(xlDown).Row)
     
@@ -157,7 +157,7 @@ Public Sub SetMLReady()
 End Sub
 
 
-Public Sub SetAQLforMLJobs()
+Private Sub SetAQLforMLJobs()
     Dim workingRange As Range
     Set workingRange = Range("A2:A" & Range("A2").End(xlDown).Row)
     Dim fso As FileSystemObject
@@ -236,6 +236,21 @@ NextCell:
 
 
 End Sub
+
+
+'************************************************************
+'*****************   Public Routines   **********************
+'************************************************************
+
+'Called by ShopStatus
+'Return the range of the JobNumber
+Public Function GetJobInd(jobNum As String) As Range
+    Dim workingRange As Range
+    Set workingRange = Range("D1:D" & Range("D1").End(xlDown).Row)
+    
+    Set GetJobInd = workingRange.Find(jobNum, LookIn:=xlValues, MatchCase:=False, SearchFormat:=False)
+    
+End Function
 
 
 

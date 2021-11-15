@@ -43,14 +43,13 @@ Private Sub printColor()
 
 End Sub
 
-Private Sub test()
-
-    Dim a() As Variant
-    a = Array()
+Private Sub unionTest()
+    Dim colors(1 To 2, 1 To 3) As Variant
     
-    If (Not a) = -1 Then
-        MsgBox "yes"
-    End If
-
-
+        'TODO: this will prob need to be a 2d array
+    colors(1, 1) = Config.COLOR_1
+    colors(1, 1) = Config.COLOR_8
+    
+    
+    
 End Sub
