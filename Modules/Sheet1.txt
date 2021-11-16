@@ -116,7 +116,7 @@ Private Sub SetPicture(Target As Range)
     
     Target.Value = ""
     If picAddy = "" Then Exit Sub
-    Set picture = Shapes.AddPicture(picAddy, False, True, Top:=Target.Top, left:=Target.left + 15, Height:=20, Width:=20)
+    Set picture = Shapes.AddPicture(picAddy, False, True, top:=Target.top, left:=Target.left + 15, Height:=20, Width:=20)
     
     If colorFill <> 0 Then
         picture.Fill.ForeColor.RGB = colorFill
@@ -397,6 +397,20 @@ Public Sub DestroyCharts()
     Me.Protect PASSWORD:=Config.PASSWORD
 End Sub
 
+Public Sub DestroyCharts2()
+    On Error Resume Next
+    Me.Shapes("Doughnut").Delete
+    Dim im As Excel.shape
+    For Each im In Me.Shapes
+        With im.Chart
+        .Delete
+        End With
+        im.Delete
+    Next im
+    
+    Set pieChart = Nothing
+End Sub
+
 
 '************************************************************
 '*********   MAIN Chart Creation Routines   *****************
@@ -404,6 +418,7 @@ End Sub
 
 Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Variant)
 
+    Call DestroyCharts2
     If pieChart Is Nothing Then
     
         'If we haven't made a chart yet
@@ -413,16 +428,17 @@ Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Var
 '        On Error GoTo 0
             
             
-        Set pieChart = Me.Shapes.AddChart2(-1, xlDoughnutExploded, left:=850, Top:=ActiveWindow.VisibleRange.Top + 5, Height:=150, Width:=200)
+        Set pieChart = Me.Shapes.AddChart2(-1, xlDoughnutExploded, left:=850, top:=ActiveWindow.VisibleRange.top + 5, Height:=150, Width:=200)
         pieChart.Title = ""
+        
         
         With pieChart.Chart
             .ChartTitle.Delete
-            .ChartGroups(1).DoughnutHoleSize = 73
+            .ChartGroups(1).DoughnutHoleSize = 40   'was 73
             .Legend.Position = xlRight
             .Legend.Height = 40
             .Legend.Width = 60
-            .Legend.Top = 40
+            .Legend.top = 40
             .Legend.left = 135
         End With
     End If
@@ -438,24 +454,52 @@ Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Var
         Selection.Format.Fill.Visible = 0
         Selection.Format.Line.Visible = 0
         Selection.Separator = "" & Chr(13) & ""
+'        Selection.Position = xlLabelPositionOutsideEnd
+        
+'        On Error Resume Next
+'        Me.Select
+'        On Error GoTo 0
+'        .SeriesCollection(1).DataLabels.Position = xlLabelPositionCenter
+'        MsgBox .PlotArea.Width
+'        MsgBox .PlotArea.Left
+'
         
         Dim i As Integer
+        Dim leftOut As Double
+        Dim topOut As Double
+        
         For i = 1 To .SeriesCollection(1).Points.Count
             .SeriesCollection(1).Points(i).Format.Fill.ForeColor.RGB = colors(i, 3)
+            .SeriesCollection(1).Points(i).DataLabel.Select
+            
+            Debug.Print ("Label: " & i & vbTab & Selection.left)
+            
+            leftOut = GetOuterLblLeft(lblLeft:=Selection.left, lblTop:=Selection.top, lblWidth:=Selection.Width, lblHeight:=Selection.Height, _
+                                chtLeft:=.PlotArea.left, chtTop:=.PlotArea.top, chtWidth:=.PlotArea.Width, chtHeight:=.PlotArea.Height, percIncrease:=0.6)
+                                
+            Debug.Print ("Label: " & i & vbTab & Selection.left)
+            
+            topOut = GetOuterLblTop(lblLeft:=Selection.left, lblTop:=Selection.top, lblWidth:=Selection.Width, lblHeight:=Selection.Height, _
+                                chtLeft:=.PlotArea.left, chtTop:=.PlotArea.top, chtWidth:=.PlotArea.Width, chtHeight:=.PlotArea.Height, percIncrease:=0.6)
+                                
+            Selection.left = leftOut
+            Selection.top = topOut
+            
+'            .SeriesCollection(1).Points(i).DataLabel.Position = xlLabelPositionOutsideEnd
         Next i
         
         
             'TODO: what are we going to do about the label's position?
-        .SeriesCollection(1).Points(2).DataLabel.Select
-        Selection.left = 0
-        Selection.Top = 0
-        Selection.Width = 40
-        Selection.Height = 25
-        .SeriesCollection(1).Points(1).DataLabel.Select
-        Selection.left = 40
-        Selection.Top = 0
-        Selection.Width = 40
-        Selection.Height = 25
+'        .SeriesCollection(1).Points(2).DataLabel.Select
+'        Selection.left = 0
+'        Selection.Top = 0
+'        Selection.Width = 40
+'        Selection.Height = 25
+'        .SeriesCollection(1).Points(1).DataLabel.Select
+'        Selection.left = 40
+'        Selection.Top = 0
+'        Selection.Width = 40
+'        Selection.Height = 25
     End With
     
 '    pieChart.OnAction = "ThisWorkbook.PrdHours_Click"
@@ -465,84 +509,11 @@ Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Var
 End Sub
 
 
-    'OLD BACKUP
-Public Sub DEPRCreatePrdHoursChart(rowNum As Integer)
-
-    GetActiveJob().Select
-
-    'TODO: we are disabling events here because of selecting the charts
-        'but prob want to do this at a higher level since we'll be adding/changin multiple charts
-    Application.EnableEvents = False
-    Application.ScreenUpdating = False
-    
-    If pieChart Is Nothing Then
-        'If we haven't made a chart yet
-            'Create new at the top left of the DashView
-        Set pieChart = Me.Shapes.AddChart2(-1, xlDoughnutExploded, left:=891, Top:=ActiveWindow.VisibleRange.Top + 5, Height:=100, Width:=140)
-        pieChart.Title = ""
-        
-        With pieChart.Chart
-            .ChartTitle.Delete
-            .SeriesCollection(1).XValues = Sheets("ShopLoad").Range("$I$1:$J$1").Value
-            .SeriesCollection(1).Values = Sheets("ShopLoad").Range("$I$" & rowNum & ":$J$" & rowNum)
-            .SeriesCollection(1).Points(1).Format.Fill.ForeColor.RGB = Config.COLOR_PURPLE
-            .SeriesCollection(1).Points(2).Format.Fill.ForeColor.RGB = Config.COLOR_BLUE
-            .SeriesCollection(1).ApplyDataLabels HasLeaderLines:=False, ShowSeriesName:=False, ShowCategoryName:=False, ShowPercentage:=True, ShowValue:=True
-            .ChartGroups(1).DoughnutHoleSize = 73
-            .Legend.Position = xlRight
-            .Legend.Height = 40
-            .Legend.Top = 40
-            .Legend.left = 80
-            .SeriesCollection(1).DataLabels.Select
-            Selection.Format.Fill.Visible = 0
-            Selection.Format.Line.Visible = 0
-            
-        End With
-    Else
-        'If we already have a chart
-            'Reset the Hours with the values from the new job
-            
-            
-            'TODO Need to reset the Xvalues as well
-        pieChart.Chart.SeriesCollection(1).Values = Sheets("ShopLoad").Range("$I$" & rowNum & ":$J$" & rowNum)
-        pieChart.Chart.SeriesCollection(1).ApplyDataLabels HasLeaderLines:=False, ShowSeriesName:=False, ShowCategoryName:=False, ShowValue:=True, ShowPercentage:=True
-    End If
-    
-        'New/Update Parameters
-            'have to reset some values of the datalabels regardless of new/used chart
-    With pieChart.Chart
-        .SeriesCollection(1).Points(1).Format.Fill.ForeColor.RGB = Config.COLOR_PURPLE  'Todo: instead we should ask an outside function to do this
-        .SeriesCollection(1).Points(2).Format.Fill.ForeColor.RGB = Config.COLOR_BLUE
-        .SeriesCollection(1).Explosion = 4
-        .SeriesCollection(1).DataLabels.Select
-        Selection.Separator = "" & Chr(13) & ""
-        .SeriesCollection(1).Points(2).DataLabel.Select
-        Selection.left = 0
-        Selection.Top = 0
-        Selection.Width = 40
-        Selection.Height = 25
-        .SeriesCollection(1).Points(1).DataLabel.Select
-        Selection.left = 40
-        Selection.Top = 0
-        Selection.Width = 40
-        Selection.Height = 25
-    End With
-'    pieChart.OnAction = "ThisWorkbook.PrdHours_Click"
-
-    pieChart.Name = "PrdHours"
-    
-    
-    'TODO: again, this should prob be at a higher level
-    Application.EnableEvents = True
-    Application.ScreenUpdating = True
-    
-End Sub
-
 Public Sub CreateProdQtyChart()
     Me.Unprotect PASSWORD:=Config.PASSWORD
     
     Dim myChart As shape
-    Set myChart = Me.Shapes.AddChart2(-1, xlLineMarkers, left:=650, Top:=ActiveWindow.VisibleRange.Top + 360, Height:=170, Width:=415)
+    Set myChart = Me.Shapes.AddChart2(-1, xlLineMarkers, left:=650, top:=ActiveWindow.VisibleRange.top + 360, Height:=170, Width:=415)
 '    myChart.Title = "dcasdfc"
     myChart.Chart.ChartTitle.Text = "Production Qty Submitted"
     
@@ -636,6 +607,49 @@ Private Function GetActiveJob() As Range
 End Function
 
 
+Private Function GetOuterLblLeft(lblLeft As Double, lblTop As Double, lblWidth As Double, lblHeight As Double, chtLeft As Double, chtTop As Double, _
+                                            chtWidth As Double, chtHeight As Double, Optional percIncrease As Double) As Double
+    Dim leftOffset As Double
+    Dim relLeft As Double
+    Dim relTop As Double
+    If percIncrease = 0 Then percIncrease = 0.15
+    
+    relLeft = Abs((lblLeft + (lblWidth / 2)) - (chtLeft + (chtWidth / 2)))
+    relTop = Abs((lblTop + (lblHeight / 2)) - (chtTop + (chtHeight / 2)))
+    
+    leftOffset = (relLeft / (relLeft + relTop)) * relLeft * percIncrease
+    
+    If lblLeft + (lblWidth / 2) > chtLeft + (chtWidth / 2) Then
+        GetOuterLblLeft = lblLeft + leftOffset
+    Else
+        GetOuterLblLeft = lblLeft - leftOffset - lblWidth ' this should be normalized as well
+    End If
+    
+End Function
+
+Private Function GetOuterLblTop(lblLeft As Double, lblTop As Double, lblWidth As Double, lblHeight As Double, chtLeft As Double, chtTop As Double, _
+                                            chtWidth As Double, chtHeight As Double, Optional percIncrease As Double) As Double
+    Dim topOffset As Double
+    Dim relLeft As Double
+    Dim relTop As Double
+    If percIncrease = 0 Then percIncrease = 0.15
+    
+    relLeft = Abs((lblLeft + (lblWidth / 2)) - (chtLeft + (chtWidth / 2)))
+    relTop = Abs((lblTop + (lblHeight / 2)) - (chtTop + (chtHeight / 2)))
+    
+    topOffset = (relTop / (relLeft + relTop)) * relTop * percIncrease
+    
+    If lblTop + (lblHeight / 2) > chtTop + (chtHeight / 2) Then
+        Debug.Print ("Past the center height")
+        GetOuterLblTop = lblTop + topOffset
+    Else
+        Debug.Print ("Above the center height")
+        GetOuterLblTop = lblTop - topOffset - lblHeight
+    End If
+    
+End Function
+
+
 Private Sub TestOLD()
     Me.Unprotect "3063bqa"
     Application.Calculation = xlCalculationManual
@@ -646,6 +660,24 @@ Private Sub TestOLD()
 
 End Sub
 
+Private Sub TestLeft()
+    Call testDbl
+
+
+End Sub
+
+Private Sub testDbl()
+    Me.Unprotect PASSWORD:="3063bqa"
+
+
+End Sub
+Private Sub testWidth()
+    MsgBox Me.Shapes("Doughnut").Chart.PlotArea.left
+'    MsgBox Me.Shapes("Doughnut").Chart.SeriesCollection(1).Points(3).DataLabel.Left
+'    MsgBox Selection.Name
+
+
+End Sub
 
 
 
