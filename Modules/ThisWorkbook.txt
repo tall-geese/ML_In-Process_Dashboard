@@ -44,12 +44,13 @@ Private Sub printColor()
 End Sub
 
 Private Sub unionTest()
-    Dim colors(1 To 2, 1 To 3) As Variant
-    
-        'TODO: this will prob need to be a 2d array
-    colors(1, 1) = Config.COLOR_1
-    colors(1, 1) = Config.COLOR_8
-    
-    
-    
+    MsgBox Me.path
+End Sub
+
+
+Private Sub Arrtest()
+    Dim a() As Variant
+    a = Array()
+
+
 End Sub

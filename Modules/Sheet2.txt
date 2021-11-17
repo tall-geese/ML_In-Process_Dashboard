@@ -76,12 +76,20 @@ Public Function GetProductionLaborDataSUM(jobNum As String) As Range  '-> XValue
     Set jobInd = Range("B1:B" & Range("B1").End(xlDown).Row).Find(What:=jobNum, MatchCase:=False)
 
     If jobInd Is Nothing Then
-        'Raise an error
+        'Raise an error, info should have been created by now
     End If
 
     If jobInd.Offset(1, 2).Value <> "" And jobInd.Offset(2, 2).Value <> "" Then
-        Set GetProductionLaborDataSUM = Range(jobInd.Offset(1, 2), jobInd.Offset(1, 2).End(xlDown))
-    ElseIf jobInd.Offset(1, 2).Value <> "" And jobInd.Offset(2, 2).Value = "" Then
+        Dim connectedSet As Range
+        Set connectedSet = Range(jobInd.Offset(1, 2), jobInd.Offset(1, 2).End(xlDown)).Find("Emp", MatchCase:=False)
+        
+        If connectedSet Is Nothing Then
+            Set GetProductionLaborDataSUM = Range(jobInd.Offset(1, 2), jobInd.Offset(1, 2).End(xlDown))
+        Else
+            Set GetProductionLaborDataSUM = Range(jobInd.Offset(1, 2), connectedSet.Offset(-1, 0))
+        End If
+        
+    ElseIf jobInd.Offset(1, 2).Value <> "" And (jobInd.Offset(2, 2).Value = "" Or jobInd.Offset(2, 2).Value = "Emp") Then
         Set GetProductionLaborDataSUM = jobInd.Offset(1, 2)
     ElseIf jobInd.Offset(1, 2).Value = "" Then
         'TODO: Err.Raise
@@ -200,7 +208,7 @@ Private Sub testUnion()
     
 End Sub
 
-Private Sub ArrTest()
+Private Sub Arrtest()
     Dim a() As Variant
     ReDim Preserve a(0)
     

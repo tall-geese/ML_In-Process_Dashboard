@@ -48,7 +48,7 @@ Private Sub FillCustomers()
     Dim workingRange As Range
     Set workingRange = Range("A2:A" & Range("A2").End(xlDown).Row)
     
-    Dim projId As String
+    Dim projID As String
     Dim cusName As String
     Dim jobNum As String
     Dim parseAttempt As Boolean
@@ -56,21 +56,18 @@ Private Sub FillCustomers()
     For Each subCell In workingRange
         jobNum = subCell.Offset(0, 3).Value  'JobNum
         If subCell.Offset(0, 12).Value <> "" Then  'Value of ProjID
-            projId = subCell.Offset(0, 12).Value
+            projID = subCell.Offset(0, 12).Value
 checkProj:
-            'TODO: set an error handling here
-            DBconnections.SQLQuery "SELECT pr.Character01 FROM EpicorLive10.dbo.Project pr WHERE pr.ProjectID='" & projId & "'", Connections.E10
-            If DBconnections.ResultRecordSet.EOF Then GoTo 10
-                'Get the Epicor Abbreivavtion attached to the project ID
-            cusName = DBconnections.ResultRecordSet.Fields(0)
+'            'TODO: set an error handling here
+'            DBconnections.SQLQuery "SELECT pr.Character01 FROM EpicorLive10.dbo.Project pr WHERE pr.ProjectID='" & projID & "'", Connections.E10
+'            If DBconnections.ResultRecordSet.EOF Then GoTo 10
+'                'Get the Epicor Abbreivavtion attached to the project ID
+            cusName = DBconnections.GetEpicorCustName(projID)
             If cusName = "" Then GoTo 10
             
 checkAbbr:
             'TODO: Different error handling here? SHould be a msg that a QE needs to add in a translation field or something
-            DBconnections.SQLQuery "SELECT ct.CustomerName FROM InspectionKiosk.dbo.CustomerTranslation ct WHERE ct.Abbreviation='" & cusName & "'", Connections.Kiosk
-                'Get the Fully Qualified name
-            If DBconnections.ResultRecordSet.EOF Then GoTo TranslateError
-            cusName = DBconnections.ResultRecordSet.Fields(0)
+            cusName = DBconnections.GetKioskCustName(cusName)
             subCell.Offset(0, 20).Value = cusName
         Else
 10
@@ -94,10 +91,10 @@ checkAbbr:
                 Do
                     dig = Mid(jobNume, i, 1)
                     If IsNumeric(dig) And dig <> "0" Then   'Filters out any P's, R's or 0's leading up to the true Proj Id
-                        projId = projId & dig
+                        projID = projID & dig
                         removedLeading = True
                     ElseIf dig = "0" And removedLeading = True Then
-                        projId = projId & dig       'Once we have any leading 0's filtered out, its fine to include trialing 0's
+                        projID = projID & dig       'Once we have any leading 0's filtered out, its fine to include trialing 0's
                     End If
                     i = i + 1
                 Loop While Mid(jobNum, i, 1) <> "-"
@@ -109,7 +106,7 @@ checkAbbr:
     
 NextCell:
 'reset vars
-        projId = ""
+        projID = ""
         cusName = ""
         cusName = ""
         jobNum = ""
@@ -120,7 +117,7 @@ NextCell:
     Exit Sub
     
 IDError:
-    MsgBox "We couldn't find a Customer Name for [ProjID]: " & projId & vbCrLf & "For [JobNumber]: " & jobNum _
+    MsgBox "We couldn't find a Customer Name for [ProjID]: " & projID & vbCrLf & "For [JobNumber]: " & jobNum _
         & "Couldnt determine if MeasurLink job or Not, Add a Customer Name to Project Entry in E10", vbCritical
     GoTo NextCell
     

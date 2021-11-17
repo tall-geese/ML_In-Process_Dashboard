@@ -11,6 +11,7 @@ Option Explicit
 
 Dim lastCellRange As Range
 Dim pieChart As Excel.shape
+Dim lineChart As Excel.shape
 Dim tempAddy As String
 
 '*************************************************************
@@ -25,17 +26,53 @@ Dim tempAddy As String
 '*************   Cleanup/Fill Routines   ********************
 '************************************************************
 
-
 Public Sub Cleanup()
     Unprotect PASSWORD:=Config.PASSWORD
-    With Rows("1:100")
+    With Columns("A:H")
         .Clear
         .RowHeight = 18
+        .Interior.ColorIndex = 0
+        .Borders.LineStyle = xlLineStyleNone
     End With
-    Cells.NumberFormat = "@"
+'    Cells.NumberFormat = "@"
     Set lastCellRange = Nothing
     
     Call DestroyCharts
+    
+    'TODO There needs to be something for cleaning out the JobView as well
+End Sub
+
+Public Sub DestroyCharts()
+    Me.Unprotect PASSWORD:=Config.PASSWORD
+
+    On Error Resume Next
+    Dim im As Excel.shape
+    For Each im In Me.Shapes
+        With im.Chart
+        .Delete
+        End With
+        im.Delete
+    Next im
+    
+    Set pieChart = Nothing
+    Set lineChart = Nothing
+End Sub
+
+Public Sub DestroyPieCharts()
+    On Error Resume Next
+    Dim im As Excel.shape
+    For Each im In Me.Shapes
+        im.Delete   'TODO: placeholder, should be safe since the pie chart is what gets created first
+    Next im
+    
+'    Me.Shapes("Doughnut").Delete
+    Set pieChart = Nothing
+End Sub
+
+Public Sub DestroyLineCharts()
+    On Error Resume Next
+    Me.Shapes("Line").Delete
+    Set lineChart = Nothing
 End Sub
 
 
@@ -173,6 +210,7 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
             
             Case "$K$6"  'Parts Completed /Required
                 Call CreateLaborQtyDoughnut
+                Call CreateLaborQtyTimeSeries
             Case "$K$8"  'Hours Remaining
                 Call CreatePrdHoursDoughnut
             Case Else
@@ -225,6 +263,7 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
             
             Case "$K$6"  'Parts Completed / Required
                 Call CreateLaborQtyDoughnut(jobCell:=jobCell)
+                Call CreateLaborQtyTimeSeries(jobCell:=jobCell)
             
             Case "$K$8"  'Hours Remaining
                 Call CreatePrdHoursDoughnut(jobCell:=jobCell)
@@ -360,6 +399,7 @@ Private Sub CreateLaborQtyDoughnut(Optional jobCell As Range)
     
     Application.EnableEvents = False
     Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
        
     jobCell.Activate
        
@@ -377,39 +417,69 @@ Private Sub CreateLaborQtyDoughnut(Optional jobCell As Range)
 
     Application.EnableEvents = True
     Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
 
 End Sub
 
-Public Sub DestroyCharts()
-    Me.Unprotect PASSWORD:=Config.PASSWORD
-
-    On Error Resume Next
-    Me.Shapes("Doughnut").Delete
-    Dim im As Excel.shape
-    For Each im In Me.Shapes
-        With im.Chart
-        .Delete
-        End With
-        im.Delete
-    Next im
+Private Sub CreateLaborQtyTimeSeries(Optional jobCell As Range)
+    If jobCell Is Nothing Then
+        Set jobCell = GetActiveJob()
+        If jobCell Is Nothing Then Exit Sub
+    End If
     
-    Set pieChart = Nothing
-    Me.Protect PASSWORD:=Config.PASSWORD
+    Dim indCell As Range
+    Dim opNum As String
+    Dim colors() As Variant
+    Dim lastActiveCell As Range
+    Set indCell = Sheets("ShopLoad").GetJobInd(jobCell.Value)
+    opNum = indCell.Offset(0, Sheets("ShopLoad").GetCol("Op Seq") - indCell.Column).Value
+    
+    Set lastActiveCell = activeCell
+    
+    Application.EnableEvents = False
+    Application.ScreenUpdating = False
+    
+    jobCell.Activate
+    
+    Dim Xrange As Range
+    Dim Yrange As Range
+    Dim empRange As Range
+    
+    Set Xrange = Sheets("ProdInfo").GetProductionLaborData(jobNum:=jobCell.Value, opNum:=opNum, colors:=colors)
+    If Xrange Is Nothing Then Exit Sub
+    Set Yrange = Xrange.Offset(0, 1)
+    Set empRange = Xrange.Offset(0, 2)
+    
+    Call CreateTimeSeriesChart(Xrange:=Xrange, Yrange:=Yrange, empRange:=empRange, colors:=colors)
+    
+    'GetProductionLaborData(jobNum As String, opNum As String, ByRef colors() As Variant) As Range '-> XValues
+    
+
+'    Dim myChart As shape
+'    Set myChart = Me.Shapes.AddChart2(-1, xlLineMarkers, left:=650, top:=ActiveWindow.VisibleRange.top + 360, Height:=170, Width:=415)
+''    myChart.Title = "dcasdfc"
+'    myChart.Chart.ChartTitle.Text = "Production Qty Submitted"
+'
+'    With myChart.Chart
+''        .ChartTitle.Delete
+'        .SeriesCollection.NewSeries
+'        .SeriesCollection(1).Values = Sheets("ProdInfo").Range("$B$2:$B$16")
+'        .SeriesCollection(1).XValues = Sheets("ProdInfo").Range("$A$2:$A$16").Value
+'        .ApplyChartTemplate ("C:\Users\mdieckman\AppData\Roaming\Microsoft\Templates\Charts\LineSeries.crtx")
+'    End With
+    
+'    myChart.Name = "TempName"
+
+    lastActiveCell.Activate
+    
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+    
+    
+
 End Sub
 
-Public Sub DestroyCharts2()
-    On Error Resume Next
-    Me.Shapes("Doughnut").Delete
-    Dim im As Excel.shape
-    For Each im In Me.Shapes
-        With im.Chart
-        .Delete
-        End With
-        im.Delete
-    Next im
-    
-    Set pieChart = Nothing
-End Sub
+
 
 
 '************************************************************
@@ -418,7 +488,7 @@ End Sub
 
 Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Variant)
 
-    Call DestroyCharts2
+    Call DestroyPieCharts
     If pieChart Is Nothing Then
     
         'If we haven't made a chart yet
@@ -428,7 +498,7 @@ Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Var
 '        On Error GoTo 0
             
             
-        Set pieChart = Me.Shapes.AddChart2(-1, xlDoughnutExploded, left:=850, top:=ActiveWindow.VisibleRange.top + 5, Height:=150, Width:=200)
+        Set pieChart = Me.Shapes.AddChart2(-1, xlDoughnutExploded, left:=850, top:=ActiveWindow.VisibleRange.top + 5, Height:=160, Width:=220)
         pieChart.Title = ""
         
         
@@ -436,10 +506,10 @@ Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Var
             .ChartTitle.Delete
             .ChartGroups(1).DoughnutHoleSize = 40   'was 73
             .Legend.Position = xlRight
-            .Legend.Height = 40
+            .Legend.Height = 75
             .Legend.Width = 60
             .Legend.top = 40
-            .Legend.left = 135
+            .Legend.left = 155
         End With
     End If
     
@@ -454,58 +524,82 @@ Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Var
         Selection.Format.Fill.Visible = 0
         Selection.Format.Line.Visible = 0
         Selection.Separator = "" & Chr(13) & ""
-'        Selection.Position = xlLabelPositionOutsideEnd
-        
-'        On Error Resume Next
-'        Me.Select
-'        On Error GoTo 0
-'        .SeriesCollection(1).DataLabels.Position = xlLabelPositionCenter
-'        MsgBox .PlotArea.Width
-'        MsgBox .PlotArea.Left
-'
-        
+    End With
+    
+    With pieChart.Chart.SeriesCollection(1)
         Dim i As Integer
         Dim leftOut As Double
         Dim topOut As Double
         
-        For i = 1 To .SeriesCollection(1).Points.Count
-            .SeriesCollection(1).Points(i).Format.Fill.ForeColor.RGB = colors(i, 3)
-            .SeriesCollection(1).Points(i).DataLabel.Select
+        For i = 1 To .Points.Count
+            .Points(i).Format.Fill.ForeColor.RGB = colors(i, 3)
+            .Points(i).DataLabel.Select
             
-            Debug.Print ("Label: " & i & vbTab & Selection.left)
+'            If i = 2 Then Debug.Print ("Label: " & i & vbTab & .Points(i).DataLabel.left)
             
-            leftOut = GetOuterLblLeft(lblLeft:=Selection.left, lblTop:=Selection.top, lblWidth:=Selection.Width, lblHeight:=Selection.Height, _
-                                chtLeft:=.PlotArea.left, chtTop:=.PlotArea.top, chtWidth:=.PlotArea.Width, chtHeight:=.PlotArea.Height, percIncrease:=0.6)
+            leftOut = GetOuterLblLeft(lblLeft:=.Points(i).DataLabel.left, lblTop:=.Points(i).DataLabel.top, lblWidth:=.Points(i).DataLabel.Width, lblHeight:=.Points(i).DataLabel.Height, _
+                                chtLeft:=pieChart.Chart.PlotArea.left, chtTop:=pieChart.Chart.PlotArea.top, chtWidth:=pieChart.Chart.PlotArea.Width, chtHeight:=pieChart.Chart.PlotArea.Height, percIncrease:=0.85)
                                 
-            Debug.Print ("Label: " & i & vbTab & Selection.left)
             
-            topOut = GetOuterLblTop(lblLeft:=Selection.left, lblTop:=Selection.top, lblWidth:=Selection.Width, lblHeight:=Selection.Height, _
-                                chtLeft:=.PlotArea.left, chtTop:=.PlotArea.top, chtWidth:=.PlotArea.Width, chtHeight:=.PlotArea.Height, percIncrease:=0.6)
+            
+            topOut = GetOuterLblTop(lblLeft:=.Points(i).DataLabel.left, lblTop:=.Points(i).DataLabel.top, lblWidth:=.Points(i).DataLabel.Width, lblHeight:=.Points(i).DataLabel.Height, _
+                                chtLeft:=pieChart.Chart.PlotArea.left, chtTop:=pieChart.Chart.PlotArea.top, chtWidth:=pieChart.Chart.PlotArea.Width, chtHeight:=pieChart.Chart.PlotArea.Height, percIncrease:=0.85)
                                 
-            Selection.left = leftOut
-            Selection.top = topOut
+'            If i = 2 Then
+'                Debug.Print (.Points(i).DataLabel.left)
+'                Debug.Print (leftOut)
+'            End If
+            .Points(i).DataLabel.left = leftOut
+            .Points(i).DataLabel.top = topOut
             
-'            .SeriesCollection(1).Points(i).DataLabel.Position = xlLabelPositionOutsideEnd
         Next i
-        
-        
-            'TODO: what are we going to do about the label's position?
-'        .SeriesCollection(1).Points(2).DataLabel.Select
-'        Selection.left = 0
-'        Selection.Top = 0
-'        Selection.Width = 40
-'        Selection.Height = 25
-'        .SeriesCollection(1).Points(1).DataLabel.Select
-'        Selection.left = 40
-'        Selection.Top = 0
-'        Selection.Width = 40
-'        Selection.Height = 25
+    
     End With
     
 '    pieChart.OnAction = "ThisWorkbook.PrdHours_Click"
 
     pieChart.Name = "Doughnut"
     
+End Sub
+
+Private Sub CreateTimeSeriesChart(Xrange As Range, Yrange As Range, empRange As Range, colors() As Variant)
+    Call DestroyLineCharts
+    Set lineChart = Me.Shapes.AddChart2(-1, xlLineMarkers, left:=650, top:=ActiveWindow.VisibleRange.top + 360, Height:=170, Width:=415)
+    
+    lineChart.Title = "Temptitle"
+    lineChart.Chart.ChartTitle.Text = "Production Qty Submitted"
+    lineChart.Name = "Line"
+
+    With lineChart.Chart
+'        .ChartTitle.Delete
+        .SeriesCollection.NewSeries
+        .SeriesCollection(1).XValues = Xrange.Value
+        .SeriesCollection(1).Values = Yrange
+        .ApplyChartTemplate (ThisWorkbook.path & "\templates\LineSeries.crtx")
+        
+        Dim i As Integer
+        i = 1
+        Dim j As Integer
+        Dim subCell As Range
+        For Each subCell In empRange
+            For j = 1 To UBound(colors)
+                If subCell.Value = colors(j, 1) Then
+                    Debug.Print (subCell.Value)
+                    Debug.Print (colors(j, 1))
+                    Debug.Print (colors(j, 3))
+                    .SeriesCollection(1).Points(i).Format.Fill.ForeColor.RGB = colors(j, 3)
+                    GoTo contEmp
+                End If
+            Next j
+contEmp:
+            i = i + 1
+        Next subCell
+        
+'    LineSeries.crtx
+    End With
+    
+    'TODO: do something about setting the colors of the dtaa points based on the employee number
+
 End Sub
 
 
@@ -622,7 +716,7 @@ Private Function GetOuterLblLeft(lblLeft As Double, lblTop As Double, lblWidth A
     If lblLeft + (lblWidth / 2) > chtLeft + (chtWidth / 2) Then
         GetOuterLblLeft = lblLeft + leftOffset
     Else
-        GetOuterLblLeft = lblLeft - leftOffset - lblWidth ' this should be normalized as well
+        GetOuterLblLeft = (lblLeft - (leftOffset - ((lblWidth * (relLeft / (relLeft + relTop))) * 0.3)))
     End If
     
 End Function
@@ -640,11 +734,11 @@ Private Function GetOuterLblTop(lblLeft As Double, lblTop As Double, lblWidth As
     topOffset = (relTop / (relLeft + relTop)) * relTop * percIncrease
     
     If lblTop + (lblHeight / 2) > chtTop + (chtHeight / 2) Then
-        Debug.Print ("Past the center height")
+'        Debug.Print ("Past the center height")
         GetOuterLblTop = lblTop + topOffset
     Else
-        Debug.Print ("Above the center height")
-        GetOuterLblTop = lblTop - topOffset - lblHeight
+'        Debug.Print ("Above the center height")
+        GetOuterLblTop = lblTop - topOffset - ((lblHeight * (relTop / (relLeft + relTop))) * 0.5)
     End If
     
 End Function
@@ -672,9 +766,9 @@ Private Sub testDbl()
 
 End Sub
 Private Sub testWidth()
-    MsgBox Me.Shapes("Doughnut").Chart.PlotArea.left
+'    MsgBox Me.Shapes("Doughnut").Chart.PlotArea.left
 '    MsgBox Me.Shapes("Doughnut").Chart.SeriesCollection(1).Points(3).DataLabel.Left
-'    MsgBox Selection.Name
+    MsgBox Selection.Height
 
 
 End Sub

@@ -1,0 +1,1 @@
+SELECT pr.ProgramReady_c, pr.ProgramReady2_c, pr.ProgramReady3_c, pr.ProgramReady4_c, pr.ProgramReady5_c, pr.ProgramReady6_c,pr.ProgramReady7_c, pr.ProgramReady8_c, pr.ProgramReady9_c, pr.ProgramReady10_c FROM EpicorLive10.dbo.PartRev pr WHERE pr.PartNum = ? AND pr.RevisionNum = ?
