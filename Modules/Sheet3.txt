@@ -13,10 +13,11 @@ Private Sub Cleanup()
 End Sub
 
 Public Sub InitShopLoad()
-    Call Cleanup
-    Call Sheets("ShopStatus").Cleanup
     Application.ScreenUpdating = False
     Application.EnableEvents = False
+    Call Cleanup
+    Call Sheets("ShopStatus").Cleanup
+    Call Sheets("ProdInfo").Clear
     
     Dim results() As Variant
     results = DBconnections.GetShopLoadInfo()
@@ -39,6 +40,7 @@ Public Sub InitShopLoad()
     Call SetMLJobs
     Call Sheets("ShopStatus").FinishTransfer
     
+    Sheets("ShopStatus").Activate
     
     Application.ScreenUpdating = True
     Application.EnableEvents = True

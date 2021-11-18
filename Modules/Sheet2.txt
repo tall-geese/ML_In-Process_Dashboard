@@ -9,10 +9,16 @@ Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
 Option Explicit
 
-
+    'Called by ShopLoad.InitShopLoad()
 Public Sub Clear()
     Cells.Clear
+    Columns("C").NumberFormat = "@"
 End Sub
+
+
+'************************************************************
+'*****************   MAIN Routines   ************************
+'************************************************************
 
     'Called by Shop Status, used for generating LaborQty Time Series
     'Finds or Generates the Data needed. Returns the range of the Dates (XValues)
@@ -26,6 +32,9 @@ Public Function GetProductionLaborData(jobNum As String, opNum As String, ByRef 
     Dim jobInd As Range
     If Range("B1").Value = "" Then
         Set jobInd = Range("B1")
+        GoTo 10
+    ElseIf Range("B1").Value <> "" And Range("B2").Value = "" Then
+        Set jobInd = Range("B2")
         GoTo 10
     End If
     
@@ -45,7 +54,7 @@ Public Function GetProductionLaborData(jobNum As String, opNum As String, ByRef 
     ElseIf jobInd.Offset(1, -1).Value <> "" And jobInd.Offset(2, -1).Value = "" Then
         Set GetProductionLaborData = jobInd.Offset(1, -1)
     ElseIf jobInd.Offset(1, -1).Value = "" Then
-        'TODO: Err.Raise
+        Err.Raise Number:=vbObjectError + 1000, Description:="No production information"
     End If
     
     'We need to return the range of Time Values and set the colors
@@ -77,6 +86,10 @@ Public Function GetProductionLaborDataSUM(jobNum As String) As Range  '-> XValue
 
     If jobInd Is Nothing Then
         'Raise an error, info should have been created by now
+        Err.Raise Number:=vbObjectError + 1100, Description:="No job after it should have been loaded"
+        
+    ElseIf jobInd.Offset(0, 2).Value = "" Then
+        Err.Raise Number:=vbObjectError + 1100, Description:="No job after it should have been loaded"
     End If
 
     If jobInd.Offset(1, 2).Value <> "" And jobInd.Offset(2, 2).Value <> "" Then
@@ -108,20 +121,34 @@ Private Sub LoadProdLaborData(targetRange As Range, jobNum As String, opNum As S
     Dim resultArr() As Variant
         'TODO: ready to capture an error in the event that there is no production, like setup perhaps
     resultArr = DBconnections.GetProductionInfo(jobNum:=jobNum, opNum:=opNum)
+    If (Not resultArr) = -1 Then GoTo 10
     resultArr = Application.WorksheetFunction.Transpose(resultArr)
     
     
     Dim fillRange As Range
-    Set fillRange = Range(Cells(targetRange.Row + 1, 1), Cells(UBound(resultArr, 1) + targetRange.Row, UBound(resultArr, 2)))
+    Dim arrDims As Integer
+    arrDims = GetDimension(resultArr)
+    
+    If arrDims = 1 Then
+        Set fillRange = Range(Cells(targetRange.Row + 1, 1), Cells(targetRange.Row + 1, UBound(resultArr, 1)))   'If its a 1-d array
+'        Set fillRange = Range(Cells(targetRange.Row + 1, 1), Cells(UBound(resultArr, 1) + targetRange.Row, 1))   'If its a 1-d array
+    Else
+        Set fillRange = Range(Cells(targetRange.Row + 1, 1), Cells(UBound(resultArr, 1) + targetRange.Row, UBound(resultArr, 2)))   'If its a 2-d array
+    End If
+    
+    
     fillRange = resultArr
     
     
         'Set the total sum of laborQty by employee for the pie chart
+10
     With targetRange
         .Offset(0, 2).Value = "Emp"
         .Offset(0, 3).Value = "Total Qty"
         .Offset(0, 4).Value = "Color"
     End With
+    
+    If (Not resultArr) = -1 Then Exit Sub
     
         'Get the SUM of All submitted parts by employee
     Dim aggResultArr() As Variant
@@ -129,12 +156,26 @@ Private Sub LoadProdLaborData(targetRange As Range, jobNum As String, opNum As S
     aggResultArr = Application.WorksheetFunction.Transpose(aggResultArr)
     
     Dim aggFillRange As Range
-    Set aggFillRange = Range(Cells(targetRange.Row + 1, 4), Cells(UBound(aggResultArr, 1) + targetRange.Row, UBound(aggResultArr, 2) + 3))
+    arrDims = GetDimension(aggResultArr)
+    If arrDims = 1 Then
+        Set aggFillRange = Range(Cells(targetRange.Row + 1, 4), Cells(targetRange.Row + 1, UBound(aggResultArr, 1) + 3))
+    Else
+        Set aggFillRange = Range(Cells(targetRange.Row + 1, 4), Cells(UBound(aggResultArr, 1) + targetRange.Row, UBound(aggResultArr, 2) + 3))
+    End If
     aggFillRange = aggResultArr
     
     Dim subCell As Range
+    Dim empRange As Range
     Dim i As Integer
     i = 0
+    
+        
+    If arrDims = 1 Then  'If we returned only one result...
+        Set empRange = Range(targetRange.Offset(0, 2), targetRange.Offset(1, 2))  'If we got this far than we should have at least one result
+    Else
+        Set empRange = Range("D" & targetRange.Row & ":D" & Range("D" & targetRange.Row).End(xlDown).Row)
+    End If
+    
             'For each unique Employee associate a color code with them
     For Each subCell In Range("D" & targetRange.Row & ":D" & Range("D" & targetRange.Row).End(xlDown).Row)
         Dim color As Long
@@ -171,52 +212,24 @@ Private Sub LoadProdLaborData(targetRange As Range, jobNum As String, opNum As S
 End Sub
 
 
+'************************************************************
+'***********   Worksheet Helper Functions   *****************
+'************************************************************
 
-'******   Testing ************
-
-
-
-Private Sub testLoad()
-    'GetProductionLaborData
-    Dim dateRange As Range
-    Dim colors() As Variant
-    
-    Set dateRange = GetProductionLaborData(jobNum:="NV16716", opNum:="10", colors:=colors)
-
-    MsgBox "hello"
-
-End Sub
-
-
-
-Private Sub testUnion()
-    Dim colors() As Variant
-    Dim empRange As Range
-    Dim colorRange As Range
-    Dim tempRange As Range
-    
-    Set empRange = Range("D21:D26")
-    Dim subCell As Range
-    
-    Set tempRange = Application.Union(empRange, empRange.Offset(0, 1), empRange.Offset(0, 2))
-
-    colors = tempRange
-'    colors = Range("D21:E26")
-    
-    MsgBox "test"
-    
-    
-End Sub
-
-Private Sub Arrtest()
-    Dim a() As Variant
-    ReDim Preserve a(0)
-    
-    If Not Not a Then
-        MsgBox "this was initailized"
-    End If
+    'Called by LoadProdLaborData()
+        'If a recordSet one has a single row, then it returns as a 1d array, as opposed to the normal 2d
+Function GetDimension(var As Variant) As Long
+    On Error GoTo Err
+    Dim i As Long
+    Dim tmp As Long
+    i = 0
+    Do While True
+        i = i + 1
+        tmp = UBound(var, i)
+    Loop
+Err:
+    GetDimension = i - 1
+End Function
 
 
-
-End Sub
 

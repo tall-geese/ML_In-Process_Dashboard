@@ -141,7 +141,7 @@ Public Function GetProductionInfo(jobNum As String, opNum As String) As Variant(
     'TODO:set the onError
     Call SQLQuery(queryString:=query, conn_enum:=Connections.E10, params:=params)
     
-    'TODO: something here to check EOF
+    If ResultRecordSet.EOF Then Exit Function
     GetProductionInfo = ResultRecordSet.GetRows()
 
 End Function

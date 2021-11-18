@@ -10,7 +10,7 @@ Attribute VB_Exposed = True
 
 Private Sub Workbook_Open()
     'PopulateShopLoad
-    Call Sheets("ShopStatus").DestroyCharts
+'    Call Sheets("ShopStatus").DestroyCharts
     Sheets("ShopStatus").Protect PASSWORD:=Config.PASSWORD
     
    
@@ -47,10 +47,3 @@ Private Sub unionTest()
     MsgBox Me.path
 End Sub
 
-
-Private Sub Arrtest()
-    Dim a() As Variant
-    a = Array()
-
-
-End Sub
