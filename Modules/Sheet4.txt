@@ -1,0 +1,232 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet4"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Sub stupidTest()
+    Dim a As Range
+    Set a = Range("A" & Cells(Rows.Count, 1).End(xlUp).Row)
+    Debug.Print (a.Address)
+
+
+End Sub
+
+Private Sub TestLoad()
+    Dim jobNum As String
+    Dim partNumber As String
+    Dim rev As String
+    Dim faType As String
+    
+    Dim tempRange As Range
+'    Cells.Clear
+    
+    
+    jobNum = "NV16931"
+    partNumber = "1907018"
+    rev = "B"
+    faType = "None"
+    
+    Set tempRange = GetEmpInspData(jobNum:=jobNum, partNumber:=partNumber, rev:=rev, faType:=faType)
+    
+
+End Sub
+
+
+
+'****************Work in Progress*************
+Public Function GetEmpInspData(jobNum As String, partNumber As String, rev As String, faType As String) As Range
+    Dim jobCell As Range
+    
+        'No Jobs set yet
+    If Range("A1").Value = "" Then
+        Set jobCell = Range("A1")
+        Call LoadMeasurementInfo(targetCell:=jobCell, jobNum:=jobNum, partNumber:=partNumber, rev:=rev, faType:=faType)
+        GoTo 10
+    End If
+
+    Set jobCell = Range("A1:A" & Cells(Rows.Count, 1).End(xlUp).Row).Find(jobNum, MatchCase:=False)
+    
+        'Job Hasn't been loaded yet
+    If jobCell Is Nothing Then
+        'Do the same as above where we set the last row found  +  the inspections in it
+        Debug.Print ("Couldn't find the cell")
+            'Find the bottom most cell in either the Job Col or the Routine Col
+        Set jobCell = Range("A" & Application.WorksheetFunction.Max(Cells(Rows.Count, 1).End(xlUp).Row + 3, Cells(Rows.Count, 2).End(xlUp).Row + 3))
+        Call LoadMeasurementInfo(targetCell:=jobCell, jobNum:=jobNum, partNumber:=partNumber, rev:=rev, faType:=faType)
+    End If
+
+10
+    'If the job didnt have any routines, then return nothing
+    If jobCell.Offset(1, 0) <> "" Or jobCell.Offset(1, 1).Value = "" Then Exit Function
+    
+    Dim rtRange As Range
+    Set rtRange = jobCell.Offset(1, 1)
+    If rtRange.Offset(1, 0).Value <> "" Then Set rtRange = Range(rtRange.Address & ":B" & rtRange.Row + rtRange.End(xlDown).Row - 1) 'Dont include the SUM()
+    
+    'Return the list of routines
+    Set GetEmpInspData = rtRange
+    
+End Function
+
+Private Sub testeGetEmpInspDta()
+    GetEmpInspData jobNumber:="NVXXXXX"
+
+End Sub
+
+Public Function GetEmpInspDataSUM() As Range
+    
+
+
+End Function
+
+
+Private Sub LoadMeasurementInfo(targetCell As Range, jobNum As String, partNumber As String, rev As String, faType As String)
+    Dim employees() As Variant
+    Dim routines() As Variant
+    Dim results() As Variant
+    
+    targetCell.Value = jobNum   'TODO: maybe move this down to the bottom later,
+    
+    Dim faRoutine As String
+    Select Case faType
+        Case "None"
+            faRoutine = "%FA_VIS%"
+        Case "Full"
+            faRoutine = "%FA_FIRST%"
+        Case "Mini"
+            faRoutine = "%FA_MINI%"
+        Case Else
+            'TODO: error out
+    End Select
+    
+'Routines
+    'All of the Routines that we SHOULD have measurements for...
+    routines = DBconnections.GetJobUnqiueRoutines(partnum:=partNumber, rev:=rev, faRoutine:=faRoutine)
+    If (Not routines) = -1 Then Exit Sub
+    
+    Dim rtFillRange As Range
+    Set rtFillRange = Range(Cells(targetCell.Row + 1, 2), Cells(targetCell.Row + 1 + UBound(routines, 2), 2))
+    rtFillRange = Application.WorksheetFunction.Transpose(routines)
+    
+
+    
+'Employees
+    
+    employees = DBconnections.GetEmployeeListSum(jobNum:=jobNum, faRoutine:=faRoutine)
+    If (Not employees) = -1 Then
+        'TODO prob goto the end of the subroutine, there are no inspections collected just yet
+    End If
+    
+    Dim empFillRange As Range
+    Set empFillRange = Range(targetCell.Offset(0, 2), targetCell.Offset(0, UBound(employees, 2) + 2))
+    empFillRange = employees
+
+    
+'Data
+    For i = 0 To UBound(employees, 2)
+        employees(0, i) = "[" & employees(0, i) & "]"
+    Next i
+    
+    
+    Dim employeeList As Variant
+    employeesList = Join(Application.index(employees, , 0), ",")
+    
+    results = DBconnections.GetEmployeeInspCount(jobNum:=jobNum, faRoutine:=faRoutine, employees:=employeesList)
+    
+    'TODO: Its possible that we have only results for a single routine....
+        'So this is not enough, we need to get the list of all applicable routines for this part and job
+        'Then we need to iterate through our result cells until we find the matching one and post ITS results,
+            'cant just post the whole range
+    results = Application.WorksheetFunction.Transpose(results)
+    
+    'Results are out of Order to the Routines we found earlier, need to iterate through and find the matching routines
+    For i = 1 To UBound(results, 1)
+        For Each rtCell In rtFillRange
+            If results(i, 1) = rtCell.Value Then
+                For j = 1 To UBound(results, 2)
+                    If j = 1 Then GoTo NextCol
+                    rtCell.Offset(0, j - 1).Value = results(i, j)
+NextCol:
+                Next j
+                GoTo NextRow
+            End If
+        Next rtCell
+NextRow:
+    Next i
+    
+        'Remove the Leading PartNum_Rev_ from routine name, it just takes up space
+    For Each rtCell In rtFillRange
+        rtCell.Value = Replace(rtCell.Value, partNumber & "_" & rev & "_", "")
+    Next rtCell
+    
+    'SUM() row
+    Dim sumCell As Range
+    Set sumCell = targetCell.Offset(rtFillRange.Count + 1, 1)
+    sumCell.Value = "SUM"
+    
+    For i = 0 To UBound(employees, 2) - 1
+        With sumCell.Offset(0, i + 1)
+            .Formula = "=SUM(" & .Offset(-1, 0).Address & ":" & .Offset(-rtFillRange.Count, 0).Address & ")"
+        End With
+    Next i
+    
+    'Color setting
+    For i = 1 To UBound(employees, 2) - 1
+        With sumCell.Offset(1, i)
+            Select Case i
+            Case 0
+                'Skip adding to the header
+            Case 1
+                .Value = Config.COLOR_BAR_1
+            Case 2
+                .Value = Config.COLOR_BAR_2
+            Case 3
+                .Value = Config.COLOR_BAR_3
+            Case 4
+                .Value = Config.COLOR_BAR_4
+            Case 5
+                .Value = Config.COLOR_BAR_5
+            Case 6
+                .Value = Config.COLOR_BAR_6
+            Case 7
+                .Value = Config.COLOR_BAR_7
+            Case 8
+                .Value = Config.COLOR_BAR_8
+            Case 9
+                .Value = Config.COLOR_BAR_9
+            Case 10
+                .Value = Config.COLOR_BAR_10
+            Case 11
+                .Value = Config.COLOR_BAR_11
+            Case Else:
+                .Value = RGB(0, 0, 0)
+        End Select
+        End With
+    Next i
+    
+'Set the Curr Req inspections and AQL inspections
+'Reformat the names of the routines so we get rid of 'part#_rev_' in the beginning, just takes up space
+    
+'Set Colors
+    'TODO: after we have the employees and the data, we need to do the color assignements at the bottom
+
+
+End Sub
+
+
+
+Private Function GetLastRoutine(jobCell As Range) As Range
+    If jobCell.Offset(1, 1).Value = "" Then Exit Function   'Or raise an error
+    If jobCell.Offset(2, 1).Value = "" Then
+        Set GetLastRoutine = jobCell.Offset(1, 1)
+    Else
+        Set GetLastRoutine = Cells(jobCell.Offset(1, 1).End(xlDown).Row, 2)
+    End If
+
+End Function
+
+

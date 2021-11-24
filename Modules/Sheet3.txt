@@ -135,17 +135,17 @@ Private Sub SetMLReady()
     Set workingRange = Range("A2:A" & Range("A2").End(xlDown).Row)
     
     Dim jobNum As String
-    Dim partNum As String
+    Dim partnum As String
     Dim rev As String
     Dim machType As String
     
     For Each subCell In workingRange
         jobNum = subCell.Offset(0, 3).Value
-        partNum = subCell.Offset(0, 5).Value
+        partnum = subCell.Offset(0, 5).Value
         rev = subCell.Offset(0, 6).Value
         machType = subCell.Offset(0, 18).Value
         
-        If DBconnections.IsMeasurLinkJob(jobNum, partNum, rev, machType) Then
+        If DBconnections.IsMeasurLinkJob(jobNum, partnum, rev, machType) Then
             subCell.Offset(0, 21).Value = "TRUE"
         Else
             subCell.Offset(0, 21).Value = "FALSE"

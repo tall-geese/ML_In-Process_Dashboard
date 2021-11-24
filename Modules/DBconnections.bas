@@ -1,12 +1,14 @@
 Attribute VB_Name = "DBconnections"
 Dim E10DatabaseConnection As ADODB.Connection
 Dim KioskDatabaseConnection As ADODB.Connection
+Dim ML7DataBaseConnection As ADODB.Connection
 Public ResultRecordSet As ADODB.Recordset
 Dim sqlCommand As ADODB.Command
 Dim fso As FileSystemObject
 Public Enum Connections
     E10 = 0
     Kiosk = 1
+    ML = 2
 End Enum
 
 '****************************************************
@@ -23,6 +25,15 @@ End Sub
 
 Private Sub InitConnection()
     'Initialize E10 Connection on startup
+    If ML7DataBaseConnection Is Nothing Then
+        
+        Set ML7DataBaseConnection = New ADODB.Connection
+        ML7DataBaseConnection.ConnectionString = Config.ML7TEST_CONN_STRING
+        ML7DataBaseConnection.Open
+        
+    End If
+    
+    
     If E10DatabaseConnection Is Nothing Then
     
         Set E10DatabaseConnection = New ADODB.Connection
@@ -46,6 +57,8 @@ Private Function GetConnection(conn_enum As Connections) As ADODB.Connection
             Set GetConnection = E10DatabaseConnection
         Case 1
             Set GetConnection = KioskDatabaseConnection
+        Case 2
+            Set GetConnection = ML7DataBaseConnection
         Case Else
     End Select
 End Function
@@ -59,6 +72,8 @@ Public Function SQLQuery(queryString As String, conn_enum As Connections, params
         .ActiveConnection = GetConnection(conn_enum)
         .CommandType = adCmdText
         .CommandText = queryString
+        
+        On Error GoTo QueryFailed
         
         'Params structure
         'params(0) = "jh.JoNum,'NV1452'"
@@ -74,8 +89,19 @@ Public Function SQLQuery(queryString As String, conn_enum As Connections, params
 10
         'TODO Error check here potentially for EOF
     sqlCommand.CommandText = queryString
+    
     ResultRecordSet.Open sqlCommand
     
+    On Error GoTo 0
+    If ResultRecordSet.EOF Then GoTo NoRows
+    
+    Exit Function
+    
+QueryFailed:
+    Err.Raise Number:=vbObjectError + 3000, Description:="Func: SQLQuery() Failed" & vbCrLf & Join(params, vbCrLf) & vbCrLf & Err.Description
+    
+NoRows:
+    Err.Raise Number:=vbObjectError + 2000, Description:="Func SQLQuery(): No Rows Returned"
 End Function
 
 
@@ -163,13 +189,93 @@ Public Function GetProductionInfoSUM(jobNum As String, opNum As String) As Varia
 
 End Function
 
-Private Function PartMLReady(partNum As String, revNum As String) As Variant
+Public Function GetEmployeeListSum(jobNum As String, faRoutine As String) As Variant()
+    Set fso = New FileSystemObject
+    Dim query As String
+    Dim params() As Variant
+    
+    query = Split(fso.OpenTextFile(Config.QUERY_PATH & "MLMeasurementInfo.sql", ForReading).ReadAll(), ";")(0)
+    params = Array("r.RunName," & jobNum, "rt.RoutineName," & faRoutine, "r.RunName," & jobNum, "rt.RoutineName," & faRoutine)
+    
+    On Error GoTo QueryError
+    'TODO:set the onError
+    Call SQLQuery(queryString:=query, conn_enum:=Connections.ML, params:=params)
+    
+    'TODO: something here to check EOF
+    GetEmployeeListSum = ResultRecordSet.GetRows()
+    
+noResults:
+
+    Exit Function
+    
+QueryError:
+    If Err.Number = vbObjectError + 2000 Then
+        Resume noResults
+    Else
+        MsgBox "Func: GetEmployeeListSum() Failed" & vbCrLf & jobNume & vbCrLf & faRoutine & vbCrLf & vbCrLf & Err.Description
+    End If
+
+End Function
+
+Public Function GetJobUnqiueRoutines(partnum As String, rev As String, faRoutine As String) As Variant()
+    Set fso = New FileSystemObject
+    Dim query As String
+    Dim params() As Variant
+    
+    query = fso.OpenTextFile(Config.QUERY_PATH & "MLUniqueRoutineList.sql", ForReading).ReadAll()
+'    query = Replace(query, "{FA_TYPE}", faRoutine)
+    params = Array("p.PartName," & partnum & "_" & rev, "rt.RoutineName," & faRoutine)
+    
+    On Error GoTo QueryError
+    'TODO:set the onError
+    Call SQLQuery(queryString:=query, conn_enum:=Connections.ML, params:=params)
+    
+    'TODO: something here to check EOF
+    GetJobUnqiueRoutines = ResultRecordSet.GetRows()
+    
+noResults:
+
+    Exit Function
+    
+QueryError:
+    If Err.Number = vbObjectError + 2000 Then
+        Resume noResults
+    Else
+        MsgBox "Func: GetJobUnqiueRoutines() Failed" & vbCrLf & partnum & "_" & rev & vbCrLf & faRoutine & vbCrLf & vbCrLf & Err.Description
+    End If
+
+End Function
+
+Public Function GetEmployeeInspCount(jobNum As String, faRoutine As String, employees As Variant) As Variant()
+    Set fso = New FileSystemObject
+    Dim query As String
+    Dim params() As Variant
+    
+    query = Split(fso.OpenTextFile(Config.QUERY_PATH & "MLMeasurementInfo.sql", ForReading).ReadAll(), ";")(1)
+    query = Replace(query, "{Employees}", employees)
+    params = Array("r.RunName," & jobNum, "rt.RoutineName," & faRoutine, "r.RunName," & jobNum, "rt.RoutineName," & faRoutine)
+    
+    On Error GoTo QueryError
+    'If we got this far, then there should be some results
+    Call SQLQuery(queryString:=query, conn_enum:=Connections.ML, params:=params)
+    
+    GetEmployeeInspCount = ResultRecordSet.GetRows()
+
+    Exit Function
+    
+QueryError:
+    MsgBox "Func: GetEmployeeInspCount() Failed" & vbCrLf & jobNume & vbCrLf & faRoutine & vbCrLf & vbCrLf & Err.Description
+    
+End Function
+
+
+Private Function PartMLReady(partnum As String, revNum As String) As Variant
     Set fso = New FileSystemObject
     Dim query As String
     Dim params() As Variant
     
     query = fso.OpenTextFile(Config.QUERY_PATH & "PartMLReady.sql", ForReading).ReadAll()
-    params = Array("pr.PartNum," & partNum, "pr.RevisionNum," & revNum)
+    params = Array("pr.PartNum," & partnum, "pr.RevisionNum," & revNum)
 
     Call SQLQuery(queryString:=query, conn_enum:=Connections.E10, params:=params)
     
@@ -185,7 +291,7 @@ End Function
 
 
 
-Function IsMeasurLinkJob(JobNumber As String, PartNumber As String, PartRev As String, MachineType As String) As Boolean
+Function IsMeasurLinkJob(jobNumber As String, partNumber As String, PartRev As String, MachineType As String) As Boolean
     If MachineType = "" Then GoTo 10
 
     Dim ReadyIndexCol As Collection
@@ -194,7 +300,7 @@ Function IsMeasurLinkJob(JobNumber As String, PartNumber As String, PartRev As S
     
     'On Error GoTo 10
     
-    machines = PartMLReady(partNum:=PartNumber, revNum:=PartRev)
+    machines = PartMLReady(partnum:=partNumber, revNum:=PartRev)
     
     If (Not machines) = -1 Then GoTo 10   'No information for this part, but we may still have created an excel IR for it.
     
@@ -236,7 +342,7 @@ Function IsMeasurLinkJob(JobNumber As String, PartNumber As String, PartRev As S
     Dim machineQuery As String
     machineQuery = MachineQuerySelect & MachineQueryFooter & MachineQueryJoins & MachineQueryCriteria
     Dim params() As Variant
-    params = Array("pr.PartNum," & PartNumber, "pr.RevisionNum," & PartRev)
+    params = Array("pr.PartNum," & partNumber, "pr.RevisionNum," & PartRev)
     
     SQLQuery queryString:=machineQuery, conn_enum:=Connections.E10, params:=params
     Set MachineRecordSet = ResultRecordSet

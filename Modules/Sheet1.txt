@@ -136,7 +136,9 @@ Public Sub AddJob(jobInfo() As Variant)
     
         'Put some dummy text under status to prevent desc. overflow
     With Cells(lastCellRange.Row, 8)
-        .Value = "."
+        If .Value = "" Then
+            .Value = "."
+        End If
         .Font.color = RGB(255, 255, 255)
     End With
     
@@ -221,6 +223,8 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
             Case "$K$2"  'Setup
             
             Case "$K$4" 'Last Insepction
+'                Call CreateInspDoughnut
+'                Call CreateInspBarChart
             
             Case "$K$6"  'Parts Completed /Required
                 Call CreateLaborQtyDoughnut
@@ -451,6 +455,56 @@ Private Sub CreateLaborQtyDoughnut(Optional jobCell As Range)
         'Will raise a specific error that we can capture if there was no production qty
             'This first call is just to set the colors
     Set Xrange = Sheets("ProdInfo").GetProductionLaborData(jobNum:=jobCell.Value, opNum:=opNum, colors:=colors)
+    Set Xrange = Sheets("ProdInfo").GetProductionLaborDataSUM(jobNum:=jobCell.Value)
+    
+    Set Yrange = Xrange.Offset(0, 1)
+10
+    On Error GoTo 0
+    Call DestroyPieCharts
+    Call CreateDoughnutChart(Xrange:=Xrange, Yrange:=Yrange, colors:=colors)
+    
+    lastActiveCell.Activate
+    
+    Exit Sub
+    
+NoInfoErr:
+        'No Production information, still set a chart of empty values anyways
+    If Err.Number = vbObjectError + 1000 Then
+        GoTo 10
+    Else
+        On Error GoTo 0
+        Err.Raise Number:=vbObjectError + 1100, Description:="Problem with fetching the Data for this Job."
+    End If
+
+End Sub
+
+
+
+    '***********Work in Progress***************
+Private Sub CreateInspDoughnut(Optional jobCell As Range)
+    If jobCell Is Nothing Then
+        Set jobCell = GetActiveJob()
+        If jobCell Is Nothing Then Exit Sub
+    End If
+    
+    Dim indCell As Range
+    Dim faType As String
+    Dim colors() As Variant
+    Dim lastActiveCell As Range
+    Set indCell = Sheets("ShopLoad").GetJobInd(jobCell.Value)
+    faType = indCell.Offset(0, Sheets("ShopLoad").GetCol("FA Type") - indCell.Column).Value
+    
+    Set lastActiveCell = activeCell
+       
+    jobCell.Activate
+       
+    Dim Xrange As Range
+    Dim Yrange As Range
+    
+    On Error GoTo NoInfoErr
+        'Will raise a specific error that we can capture if there was no production qty
+            'This first call is just to set the colors
+    Set Xrange = Sheets("ProdInfo").GetEmpInspData(jobNum:=jobCell.Value, opNum:=opNum, colors:=colors)
     Set Xrange = Sheets("ProdInfo").GetProductionLaborDataSUM(jobNum:=jobCell.Value)
     
     Set Yrange = Xrange.Offset(0, 1)

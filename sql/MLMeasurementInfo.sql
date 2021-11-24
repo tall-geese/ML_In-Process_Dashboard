@@ -15,7 +15,7 @@
 			LEFT OUTER JOIN MeasurLink7.dbo.Feature f ON frd.FeatureID = f.FeatureID 
 			LEFT OUTER JOIN MeasurLink7.dbo.DataTraceability dt ON r.RunID = dt.RunID AND frd.FeatureID = dt.FeatureID AND frd.ObsID = dt.StartObsID 
 			LEFT OUTER JOIN MeasurLink7.dbo.FeatureProperties fp ON fp.FeatureID = f.FeatureID AND fr.FeaturePropID = fp.FeaturePropID 
-			WHERE r.RunName = ? AND (rt.RoutineName = ? OR rt.RoutineName LIKE '%_IP_%') AND f.FeatureType = 1 AND (dt.TraceabilityListID = 143 OR dt.TraceabilityListID IS NULL)
+			WHERE r.RunName = ? AND (rt.RoutineName LIKE ? OR rt.RoutineName LIKE '%_IP_%') AND f.FeatureType = 1 AND (dt.TraceabilityListID = 143 OR dt.TraceabilityListID IS NULL)
 			UNION ALL
 			SELECT r.RunName, rt.RoutineName, afrd.ObsID, COALESCE(dt.ItemName,'???')[EmpID],
 				CASE 
@@ -30,7 +30,7 @@
 			LEFT OUTER JOIN MeasurLink7.dbo.Feature f ON afrd.FeatureID = f.FeatureID 
 			LEFT OUTER JOIN MeasurLink7.dbo.DataTraceability dt ON r.RunID = dt.RunID AND afrd.FeatureID = dt.FeatureID AND afrd.ObsID = dt.StartObsID 
 			LEFT OUTER JOIN MeasurLink7.dbo.FeatureProperties fp ON fp.FeatureID = f.FeatureID AND fr.FeaturePropID = fp.FeaturePropID 
-			WHERE r.RunName = ? AND (rt.RoutineName = ? OR rt.RoutineName LIKE '%_IP_%') AND f.FeatureType = 2 AND (dt.TraceabilityListID = 143 OR dt.TraceabilityListID IS NULL)) src
+			WHERE r.RunName = ? AND (rt.RoutineName LIKE ? OR rt.RoutineName LIKE '%_IP_%') AND f.FeatureType = 2 AND (dt.TraceabilityListID = 143 OR dt.TraceabilityListID IS NULL)) src
 		GROUP BY src.RoutineName, src.ObsID
 		HAVING MIN(src.Result) >= 0 )src2;
 		  
@@ -53,7 +53,7 @@
 			LEFT OUTER JOIN MeasurLink7.dbo.Feature f ON frd.FeatureID = f.FeatureID 
 			LEFT OUTER JOIN MeasurLink7.dbo.DataTraceability dt ON r.RunID = dt.RunID AND frd.FeatureID = dt.FeatureID AND frd.ObsID = dt.StartObsID 
 			LEFT OUTER JOIN MeasurLink7.dbo.FeatureProperties fp ON fp.FeatureID = f.FeatureID AND fr.FeaturePropID = fp.FeaturePropID 
-			WHERE r.RunName = ? AND (rt.RoutineName = ? OR rt.RoutineName LIKE '%_IP_%') AND f.FeatureType = 1 AND (dt.TraceabilityListID = 143 OR dt.TraceabilityListID IS NULL)
+			WHERE r.RunName = ? AND (rt.RoutineName LIKE ? OR rt.RoutineName LIKE '%_IP_%') AND f.FeatureType = 1 AND (dt.TraceabilityListID = 143 OR dt.TraceabilityListID IS NULL)
 			UNION ALL
 			SELECT r.RunName, rt.RoutineName, afrd.ObsID, COALESCE(dt.ItemName,'???')[EmpID],
 				CASE 
@@ -68,11 +68,11 @@
 			LEFT OUTER JOIN MeasurLink7.dbo.Feature f ON afrd.FeatureID = f.FeatureID 
 			LEFT OUTER JOIN MeasurLink7.dbo.DataTraceability dt ON r.RunID = dt.RunID AND afrd.FeatureID = dt.FeatureID AND afrd.ObsID = dt.StartObsID 
 			LEFT OUTER JOIN MeasurLink7.dbo.FeatureProperties fp ON fp.FeatureID = f.FeatureID AND fr.FeaturePropID = fp.FeaturePropID 
-			WHERE r.RunName = ? AND (rt.RoutineName = ? OR rt.RoutineName LIKE '%_IP_%') AND f.FeatureType = 2 AND (dt.TraceabilityListID = 143 OR dt.TraceabilityListID IS NULL)) src
+			WHERE r.RunName = ? AND (rt.RoutineName LIKE ? OR rt.RoutineName LIKE '%_IP_%') AND f.FeatureType = 2 AND (dt.TraceabilityListID = 143 OR dt.TraceabilityListID IS NULL)) src
 		GROUP BY src.RoutineName, src.ObsID
 		HAVING MIN(src.Result) >= 0 )src2
 	PIVOT(COUNT(ObsId)
-		  FOR Employee IN ({Features})
+		  FOR Employee IN ({Employees})
 		  ) AS Pvt
 	ORDER BY Pvt.RoutineName DESC
 		  
