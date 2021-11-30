@@ -5,11 +5,19 @@
 - Add another col to ShopLoad for completed# Good inspections
   - and #shifts worked, and how many inspections we should be expecting
 
+### ShopStatus
+1. Time series cleanup sub needs to be changed
+   1. The bar chart and time series are going to be sharing the same space...
+
 ### MeasurementInfo Sheet
 1. The main callable should return the range of routines
    1. We should be offsetting one by one and looking at the cell above the first one adn seeing that there is an emlpoyee # there
 2. Create a Cleanup() subroutine and link it to the ShopLoad
 
+#### Test
+Can we actually pass a collection of range objects?
+I kind of recall that this doesnt work....
+`yes, this will work but just be sure to declare the variable explcitly as a range before iterating through the collection`
 
 #### Insp Bar Chart
 1. Before we go setting the vertical lines, first lets get a bar graph set conditionally in the viewport

@@ -53,7 +53,8 @@ Public Function GetEmpInspData(jobNum As String, partNumber As String, rev As St
 'Collect the Routine Range
     Dim rtRange As Range
     Set rtRange = jobCell.Offset(1, 1)
-    If rtRange.Offset(1, 0).Value <> "" Then Set rtRange = Range(rtRange.Address & ":B" & rtRange.Row + rtRange.End(xlDown).Row - 1) 'Dont include the SUM()
+    'If rtRange.Offset(1, 0).Value <> "" Then Set rtRange = Range(rtRange.Address & ":B" & rtRange.Row + rtRange.End(xlDown).Row - 1)
+    If rtRange.Offset(1, 0).Value <> "" Then Set rtRange = Range(rtRange.Address & ":B" & rtRange.End(xlDown).Row - 1) 'Dont include the SUM()
     
     'Return the list of routines
     Set GetEmpInspData = rtRange

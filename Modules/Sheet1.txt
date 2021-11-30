@@ -12,6 +12,7 @@ Option Explicit
 Dim lastCellRange As Range
 Dim pieChart As Excel.shape
 Dim lineChart As Excel.shape
+Dim barChart As Excel.shape
 Dim tempAddy As String
 
 '*************************************************************
@@ -223,8 +224,8 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
             Case "$K$2"  'Setup
             
             Case "$K$4" 'Last Insepction
-'                Call CreateInspDoughnut
-'                Call CreateInspBarChart
+                Call CreateInspBarChart
+                Call CreateInspDoughnut
             
             Case "$K$6"  'Parts Completed /Required
                 Call CreateLaborQtyDoughnut
@@ -283,6 +284,8 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
             Case "$K$2"  'Setup Info
             
             Case "$K$4"  'Last Inspection Info
+                Call CreateInspBarChart(jobCell:=jobCell)
+                Call CreateInspDoughnut(jobCell:=jobCell)
             
             Case "$K$6"  'Parts Completed / Required
                 Call CreateLaborQtyDoughnut(jobCell:=jobCell)
@@ -528,6 +531,87 @@ NoInfoErr:
 
 End Sub
 
+Private Sub CreateInspBarChart(Optional jobCell As Range)
+    If jobCell Is Nothing Then
+        Set jobCell = GetActiveJob()
+        If jobCell Is Nothing Then Exit Sub
+    End If
+    
+    Dim lastActiveCell As Range
+    Dim rtRange As Range
+    Dim indCell As Range
+    Dim partnum As String
+    Dim rev As String
+    Dim faType As String
+    
+    
+    Set lastActiveCell = activeCell
+    jobCell.Activate
+    
+    Set indCell = Sheets("ShopLoad").GetJobInd(jobCell.Value)
+    partnum = indCell.Offset(0, Sheets("ShopLoad").GetCol("Part#") - indCell.Column).Value
+    rev = indCell.Offset(0, Sheets("ShopLoad").GetCol("Rev") - indCell.Column).Value
+    faType = indCell.Offset(0, Sheets("ShopLoad").GetCol("FA Type") - indCell.Column).Value
+    
+    Set rtRange = Sheets("MeasurementInfo").GetEmpInspData(jobNum:=jobCell.Value, partNumber:=partnum, _
+                                                    rev:=rev, faType:=faType)
+                                                    
+    If rtRange Is Nothing Then Exit Sub 'TODO: handle we couldnt get the job info / there are no routines for this job
+    
+    Dim Yrange As Collection
+    Dim empRange As Range
+    Dim colorRange As Range
+    Dim rtAddy As String
+    
+    Set Yrange = New Collection
+    rtAddy = rtRange.Address
+    
+    Do
+        Dim empCell As Range
+        Dim colorCell As Range
+        
+        Set rtRange = rtRange.Offset(0, 1)
+        
+        Set empCell = rtRange.Cells(1).Offset(-1, 0)
+        If empCell.Value = "" Then GoTo 10
+        
+        Set colorCell = rtRange.Cells(rtRange.Count).Offset(2, 0)
+        
+        Yrange.Add rtRange
+        
+        If empRange Is Nothing Then
+            Set empRange = empCell
+            Set colorRange = colorCell
+        Else
+            Set empRange = Application.Union(empRange, empCell)
+            Set colorRange = Application.Union(colorRange, colorCell)
+        End If
+        
+    Loop While True
+    
+10
+    If Yrange.Count = 0 Then Exit Sub 'TODO: handle we didnt have any inspections
+    
+    Set rtRange = Range(rtAddy)
+    
+    CreateBarChart Xrange:=rtRange, Yrange:=Yrange, empRange:=empRange, colorRange:=colorRange
+    
+    lastActiveCell.Activate
+    
+'TODO: erorr handlers here
+    
+    'We need ot make a call to the Create Bar Chart Main
+        'which is going to be similar to the Time Series chart,
+        
+    'need to pass
+        'a range of the routineNames which will be the X axis
+        'a collection of ranges representing each of the series
+        'need to create an array of colors, each series in order will get the appropriate color
+        
+
+End Sub
+
+
 Private Sub CreateLaborQtyTimeSeries(Optional jobCell As Range)
     If jobCell Is Nothing Then
         Set jobCell = GetActiveJob()
@@ -647,6 +731,48 @@ Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Var
     End With
 '    pieChart.OnAction = "ThisWorkbook.PrdHours_Click"
     
+End Sub
+
+
+    '*******work in progress********
+Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Range, colorRange As Range)
+    
+    Set barChart = Me.Shapes.AddChart2(-1, xlBarStacked, left:=650, top:=ActiveWindow.VisibleRange.top + 360, Height:=170, Width:=415)
+    barChart.Name = "Bar"
+    'TODO: we should clear the contents out of the chart here, problems with the active cell
+    
+    If Xrange Is Nothing Or Yrange.Count = 0 Then
+        Dim coll As Excel.Series
+        For Each coll In barChart.Chart.SeriesCollection
+            coll.XValues = vbEmpty
+            coll.Values = vbEmpty
+        Next coll
+        
+        barChart.Chart.ChartTitle.Caption = "NO DATA"
+        barChart.Chart.ApplyChartTemplate (ThisWorkbook.path & "\templates\BarChartSum.crtx")
+        Exit Sub
+    End If
+    
+    barChart.Chart.ChartTitle.Caption = "Good Inspections"
+
+    Dim i As Integer
+    Dim Yvalues As Range
+    i = 1
+    
+    For Each Yvalues In Yrange
+        barChart.Chart.SeriesCollection.NewSeries
+        With barChart.Chart.SeriesCollection(i)
+            .Name = empRange.Cells(0, i)
+            .Values = Yvalues.Value
+            .Format.Fill.ForeColor.RGB = colorRange.Cells(i).Value  'erorred here last
+            
+            If i = 1 Then
+                .XValues = Xrange.Value
+            End If
+        End With
+        i = i + 1
+    Next Yvalues
+
 End Sub
 
 Private Sub CreateTimeSeriesChart(Xrange As Range, Yrange As Range, empRange As Range, colors() As Variant)
