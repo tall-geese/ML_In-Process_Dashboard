@@ -43,7 +43,12 @@ Private Sub printColor()
 
 End Sub
 
-Private Sub unionTest()
-    MsgBox Me.path
-End Sub
+'Private Sub unionTest()
+'    Dim arr(1 To 8, 1 To 3) As Variant
+'    arr(1, 3) = "this"
+'    arr(2, 3) = "is"
+'    arr(3, 3) = "Stupid"
+'End Sub
+
+
 

@@ -2,12 +2,14 @@
 - Change cell color for jobName in the viewport
   - based on the customer the job belongs to
 
-- Add another col to ShopLoad for completed# Good inspections
-  - and #shifts worked, and how many inspections we should be expecting
+- No Matter what, when we have a clean slate and go to load the first job info for the insp charts, we get an error
+  - This seems to happen whenever there isnt inspection data for the job, we aren't handling Nothing ranges correctly
+
 
 ### ShopStatus
 1. Time series cleanup sub needs to be changed
    1. The bar chart and time series are going to be sharing the same space...
+2. Need a more correct way of dealing with this LastActiveCell nonsense, although prob wont have info on how to handle this until teh very end
 
 ### MeasurementInfo Sheet
 1. The main callable should return the range of routines
@@ -23,6 +25,10 @@ I kind of recall that this doesnt work....
 1. Before we go setting the vertical lines, first lets get a bar graph set conditionally in the viewport
 2. Our lines dont need to reference a literal range, they can use a literal value (figure out how this is done in the code)
    1. So this information should be set in the ShopLoad tab, along with our AQL req, the current insps required (calculated) and # of shifts worked
+3. Add cols to ShopLoad for #Shifts worked, #AQL inspections required
+   1. We will need to grab this data for setting up the marker flags
+   2. We will Also need a way to SUM() the data of the collection of ranges that we pass to the bar chart, incrementing the count as we go towards the next range in the coll
+4. Color#4 could stand to be replaced with an earlier blue, btu not urgent
 
 #### older
 -----------------------------------------

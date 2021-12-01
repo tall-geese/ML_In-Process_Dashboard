@@ -74,10 +74,12 @@ Public Sub DestroyPieCharts(Optional destroyLine As Boolean)
     Set pieChart = Nothing
 End Sub
 
-Public Sub DestroyLineCharts()
+Public Sub DestroyBottomCharts()
     On Error Resume Next
     Me.Shapes("Line").Delete
+    Me.Shapes("Bar").Delete
     Set lineChart = Nothing
+    Set barChart = Nothing
 End Sub
 
     'Creates the Header Cell Row the Production Machines
@@ -490,46 +492,41 @@ Private Sub CreateInspDoughnut(Optional jobCell As Range)
         If jobCell Is Nothing Then Exit Sub
     End If
     
-    Dim indCell As Range
-    Dim faType As String
-    Dim colors() As Variant
     Dim lastActiveCell As Range
-    Set indCell = Sheets("ShopLoad").GetJobInd(jobCell.Value)
-    faType = indCell.Offset(0, Sheets("ShopLoad").GetCol("FA Type") - indCell.Column).Value
-    
     Set lastActiveCell = activeCell
        
     jobCell.Activate
        
     Dim Xrange As Range
     Dim Yrange As Range
+    Dim colors() As Variant
     
-    On Error GoTo NoInfoErr
         'Will raise a specific error that we can capture if there was no production qty
             'This first call is just to set the colors
-    Set Xrange = Sheets("ProdInfo").GetEmpInspData(jobNum:=jobCell.Value, opNum:=opNum, colors:=colors)
-    Set Xrange = Sheets("ProdInfo").GetProductionLaborDataSUM(jobNum:=jobCell.Value)
-    
-    Set Yrange = Xrange.Offset(0, 1)
-10
+    Set Yrange = Sheets("MeasurementInfo").GetEmpInspDataSUM(jobNum:=jobCell.Value, empRange:=Xrange, colors:=colors)
+    If (Not colors) = -1 Then GoTo 10  'Theres nothing to set, let the chart routines setup the default NO DATA
+
+    'Check if the reutrned range is nothing
+    Dim fmtColors() As Variant
+    ReDim Preserve fmtColors(1 To UBound(colors, 2), 1 To 3)
+    Dim i As Integer
+    For i = 1 To UBound(colors, 2)
+        fmtColors(i, 3) = colors(1, i)
+    Next i
+
+
     On Error GoTo 0
+10
     Call DestroyPieCharts
-    Call CreateDoughnutChart(Xrange:=Xrange, Yrange:=Yrange, colors:=colors)
+    Call CreateDoughnutChart(Xrange:=Xrange, Yrange:=Yrange, colors:=fmtColors)
     
     lastActiveCell.Activate
     
-    Exit Sub
-    
-NoInfoErr:
-        'No Production information, still set a chart of empty values anyways
-    If Err.Number = vbObjectError + 1000 Then
-        GoTo 10
-    Else
-        On Error GoTo 0
-        Err.Raise Number:=vbObjectError + 1100, Description:="Problem with fetching the Data for this Job."
-    End If
+    'TODO erorr handle here
 
 End Sub
+
+
 
 Private Sub CreateInspBarChart(Optional jobCell As Range)
     If jobCell Is Nothing Then
@@ -556,7 +553,7 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
     Set rtRange = Sheets("MeasurementInfo").GetEmpInspData(jobNum:=jobCell.Value, partNumber:=partnum, _
                                                     rev:=rev, faType:=faType)
                                                     
-    If rtRange Is Nothing Then Exit Sub 'TODO: handle we couldnt get the job info / there are no routines for this job
+    
     
     Dim Yrange As Collection
     Dim empRange As Range
@@ -564,6 +561,9 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
     Dim rtAddy As String
     
     Set Yrange = New Collection
+    If rtRange Is Nothing Then GoTo 10 'TODO: handle we couldnt get the job info / there are no routines for this job
+    
+    
     rtAddy = rtRange.Address
     
     Do
@@ -590,23 +590,16 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
     Loop While True
     
 10
-    If Yrange.Count = 0 Then Exit Sub 'TODO: handle we didnt have any inspections
+'    If Yrange.Count = 0 Then Exit Sub 'TODO: handle we didnt have any inspections
     
-    Set rtRange = Range(rtAddy)
+    Set rtRange = Sheets("MeasurementInfo").Range(rtAddy)
     
+    Call DestroyBottomCharts
     CreateBarChart Xrange:=rtRange, Yrange:=Yrange, empRange:=empRange, colorRange:=colorRange
     
     lastActiveCell.Activate
     
 'TODO: erorr handlers here
-    
-    'We need ot make a call to the Create Bar Chart Main
-        'which is going to be similar to the Time Series chart,
-        
-    'need to pass
-        'a range of the routineNames which will be the X axis
-        'a collection of ranges representing each of the series
-        'need to create an array of colors, each series in order will get the appropriate color
         
 
 End Sub
@@ -641,7 +634,7 @@ Private Sub CreateLaborQtyTimeSeries(Optional jobCell As Range)
     
 10
     On Error GoTo 0
-    Call DestroyLineCharts
+    Call DestroyBottomCharts
     Call CreateTimeSeriesChart(Xrange:=Xrange, Yrange:=Yrange, empRange:=empRange, colors:=colors)
 
     lastActiveCell.Activate
@@ -737,7 +730,7 @@ End Sub
     '*******work in progress********
 Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Range, colorRange As Range)
     
-    Set barChart = Me.Shapes.AddChart2(-1, xlBarStacked, left:=650, top:=ActiveWindow.VisibleRange.top + 360, Height:=170, Width:=415)
+    Set barChart = Me.Shapes.AddChart2(-1, xlBarStacked, left:=660, top:=ActiveWindow.VisibleRange.top + 360, Height:=170, Width:=415)
     barChart.Name = "Bar"
     'TODO: we should clear the contents out of the chart here, problems with the active cell
     
@@ -753,7 +746,8 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
         Exit Sub
     End If
     
-    barChart.Chart.ChartTitle.Caption = "Good Inspections"
+    barChart.Chart.ApplyChartTemplate (ThisWorkbook.path & "\templates\BarChartSum.crtx")
+    barChart.Chart.ChartTitle.Caption = Xrange.Cells(1).Offset(-1, -1).Value
 
     Dim i As Integer
     Dim Yvalues As Range
@@ -762,12 +756,12 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
     For Each Yvalues In Yrange
         barChart.Chart.SeriesCollection.NewSeries
         With barChart.Chart.SeriesCollection(i)
-            .Name = empRange.Cells(0, i)
+            .Name = empRange.Cells(i)
             .Values = Yvalues.Value
             .Format.Fill.ForeColor.RGB = colorRange.Cells(i).Value  'erorred here last
             
             If i = 1 Then
-                .XValues = Xrange.Value
+                .XValues = Xrange
             End If
         End With
         i = i + 1
@@ -777,7 +771,7 @@ End Sub
 
 Private Sub CreateTimeSeriesChart(Xrange As Range, Yrange As Range, empRange As Range, colors() As Variant)
     
-    Set lineChart = Me.Shapes.AddChart2(-1, xlLineMarkers, left:=650, top:=ActiveWindow.VisibleRange.top + 360, Height:=170, Width:=415)
+    Set lineChart = Me.Shapes.AddChart2(-1, xlLineMarkers, left:=720, top:=ActiveWindow.VisibleRange.top + 360, Height:=170, Width:=415)
     lineChart.Name = "Line"
     
     If Xrange Is Nothing Or Yrange Is Nothing Then
@@ -838,7 +832,7 @@ Public Function GetCol(colName As String) As Integer
 End Function
 
 
-    'Collection of Jobs in the "C" column
+    'All cells with Jobs in the "C" column
 Public Function GetJobCells() As Range
     Dim activeCell As Range
     Set activeCell = Range("C1")

@@ -17,6 +17,11 @@ Attribute VB_Exposed = True
 '*************************************************************
 '*************************************************************
 
+Public Sub Clear()
+    Cells.Clear
+    Columns("C").NumberFormat = "General"
+End Sub
+
 
 '************************************************************
 '*****************   Public Methods   ***********************
@@ -61,8 +66,8 @@ Public Function GetEmpInspData(jobNum As String, partNumber As String, rev As St
     
 End Function
 
-    'Same as above, except returns the SUM() cell. Doesnt make the call to load information since it should always be called after GetEmpInspData
-Public Function GetEmpInspDataSUM(jobNum As String) As Range
+    'Same as above, except returns the SUM() range. Doesnt make the call to load information since it should always be called after GetEmpInspData
+Public Function GetEmpInspDataSUM(jobNum As String, ByRef empRange As Range, ByRef colors() As Variant) As Range
     
 'Find/Set the Job
     Dim jobCell As Range
@@ -77,9 +82,25 @@ Public Function GetEmpInspDataSUM(jobNum As String) As Range
     If sumRange.Value = "SUM" Or sumRange.Offset(1, 0).Value = "" Then GoTo 10  'No Routines for this job, should never happen
     
     Set sumRange = sumRange.End(xlDown)
-    Debug.Print (sumRange.Address & vbTab & sumRange.Value)
 10
-    'Return the list of routines
+
+'Find the SUM() range
+    'We cant use .End() to find the end of the sum range, because there could be Null or no data
+    'Need to find the range spanning the colors and offset up
+    If sumRange.Offset(1, 1).Value <> "" Then
+        Set sumRange = sumRange.Offset(1, 1)
+        If sumRange.Offset(0, 1).Value <> "" Then
+            Set sumRange = Range(sumRange.Address & ":" & sumRange.End(xlToRight).Address)
+        End If
+    Else
+        Exit Function
+    End If
+
+    colors = sumRange
+    Set sumRange = sumRange.Offset(-1, 0)
+    Set empRange = sumRange.Offset(jobCell.Row - sumRange.Row, 0)
+
+    'Return the range of inspection counts
     Set GetEmpInspDataSUM = sumRange
 
 
@@ -123,7 +144,8 @@ Private Sub LoadMeasurementInfo(targetCell As Range, jobNum As String, partNumbe
     
     employees = DBconnections.GetEmployeeListSum(jobNum:=jobNum, faRoutine:=faRoutine)
     If (Not employees) = -1 Then
-        'TODO prob goto the end of the subroutine, there are no inspections collected just yet
+        targetCell.Offset(rtFillRange.Count + 1, 1).Value = "SUM"
+        Exit Sub  'TODO: testing this, want to add a sum() row but nothing should get set
     End If
     
     Dim empFillRange As Range
@@ -167,6 +189,8 @@ NextRow:
     For Each rtCell In rtFillRange
         rtCell.Value = Replace(rtCell.Value, partNumber & "_" & rev & "_", "")
     Next rtCell
+    
+SetSum:
     
 'SUM() row
     Dim sumCell As Range
