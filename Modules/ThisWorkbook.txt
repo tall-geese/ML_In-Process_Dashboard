@@ -11,7 +11,7 @@ Attribute VB_Exposed = True
 Private Sub Workbook_Open()
     'PopulateShopLoad
 '    Call Sheets("ShopStatus").DestroyCharts
-    Sheets("ShopStatus").Protect PASSWORD:=Config.PASSWORD
+    Sheets("ShopStatus").Protect PASSWORD:=config.PASSWORD
     
    
     result = MsgBox("Would you like to refresh the shop load?", vbYesNo)

@@ -318,7 +318,7 @@ End Function
 'Return column # of the header
 Public Function GetCol(colName As String) As Integer
     Dim colRange As Range
-    Set colRange = Range("A1:W1")
+    Set colRange = Range("A1:Z1")
     On Error Resume Next
     GetCol = Application.WorksheetFunction.Match(colName, colRange, 0)
     If Err.Number <> 0 Then

@@ -183,25 +183,25 @@ Private Sub LoadProdLaborData(targetRange As Range, jobNum As String, opNum As S
             Case 0
                 'Skip adding to the header
             Case 1
-                color = Config.COLOR_1
+                color = config.COLOR_1
             Case 2
-                color = Config.COLOR_2
+                color = config.COLOR_2
             Case 3
-                color = Config.COLOR_3
+                color = config.COLOR_3
             Case 4
-                color = Config.COLOR_4
+                color = config.COLOR_4
             Case 5
-                color = Config.COLOR_5
+                color = config.COLOR_5
             Case 6
-                color = Config.COLOR_6
+                color = config.COLOR_6
             Case 7
-                color = Config.COLOR_7
+                color = config.COLOR_7
             Case 8
-                color = Config.COLOR_8
+                color = config.COLOR_8
             Case 9
-                color = Config.COLOR_9
+                color = config.COLOR_9
             Case 10
-                color = Config.COLOR_10
+                color = config.COLOR_10
             Case Else:
                 color = RGB(0, 0, 0)
         End Select

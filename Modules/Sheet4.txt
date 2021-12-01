@@ -210,27 +210,27 @@ SetSum:
             Case 0
                 'Skip adding to the header
             Case 1
-                .Value = Config.COLOR_BAR_1
+                .Value = config.COLOR_BAR_1
             Case 2
-                .Value = Config.COLOR_BAR_2
+                .Value = config.COLOR_BAR_2
             Case 3
-                .Value = Config.COLOR_BAR_3
+                .Value = config.COLOR_BAR_3
             Case 4
-                .Value = Config.COLOR_BAR_4
+                .Value = config.COLOR_BAR_4
             Case 5
-                .Value = Config.COLOR_BAR_5
+                .Value = config.COLOR_BAR_5
             Case 6
-                .Value = Config.COLOR_BAR_6
+                .Value = config.COLOR_BAR_6
             Case 7
-                .Value = Config.COLOR_BAR_7
+                .Value = config.COLOR_BAR_7
             Case 8
-                .Value = Config.COLOR_BAR_8
+                .Value = config.COLOR_BAR_8
             Case 9
-                .Value = Config.COLOR_BAR_9
+                .Value = config.COLOR_BAR_9
             Case 10
-                .Value = Config.COLOR_BAR_10
+                .Value = config.COLOR_BAR_10
             Case 11
-                .Value = Config.COLOR_BAR_11
+                .Value = config.COLOR_BAR_11
             Case Else:
                 .Value = RGB(0, 0, 0)
         End Select

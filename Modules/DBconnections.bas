@@ -28,7 +28,7 @@ Private Sub InitConnection()
     If ML7DataBaseConnection Is Nothing Then
         
         Set ML7DataBaseConnection = New ADODB.Connection
-        ML7DataBaseConnection.ConnectionString = Config.ML7TEST_CONN_STRING
+        ML7DataBaseConnection.ConnectionString = config.ML7TEST_CONN_STRING
         ML7DataBaseConnection.Open
         
     End If
@@ -37,14 +37,14 @@ Private Sub InitConnection()
     If E10DatabaseConnection Is Nothing Then
     
         Set E10DatabaseConnection = New ADODB.Connection
-        E10DatabaseConnection.ConnectionString = Config.E10_CONN_STRING
+        E10DatabaseConnection.ConnectionString = config.E10_CONN_STRING
         E10DatabaseConnection.Open
         
     End If
     If KioskDatabaseConnection Is Nothing Then
     
         Set KioskDatabaseConnection = New ADODB.Connection
-        KioskDatabaseConnection.ConnectionString = Config.KIOSK_CONN_STRING
+        KioskDatabaseConnection.ConnectionString = config.KIOSK_CONN_STRING
         KioskDatabaseConnection.Open
         
     End If
@@ -114,7 +114,7 @@ Public Function GetShopLoadInfo() As Variant()
     Dim query As String
     Dim params() As Variant
     
-    query = fso.OpenTextFile(Config.QUERY_PATH & "JobLoad.sql", ForReading).ReadAll()
+    query = fso.OpenTextFile(config.QUERY_PATH & "JobLoad.sql", ForReading).ReadAll()
     
     'TODO:set the onError
     Call SQLQuery(queryString:=query, conn_enum:=Connections.E10, params:=params)
@@ -129,7 +129,7 @@ Public Function GetEpicorCustName(projID As String) As String
     Dim query As String
     Dim params() As Variant
 
-    query = fso.OpenTextFile(Config.QUERY_PATH & "EpicorCustomer.sql", ForReading).ReadAll()
+    query = fso.OpenTextFile(config.QUERY_PATH & "EpicorCustomer.sql", ForReading).ReadAll()
     params = Array("pr.ProjectID," & projID)
     
     Call SQLQuery(queryString:=query, conn_enum:=Connections.E10, params:=params)
@@ -144,7 +144,7 @@ Public Function GetKioskCustName(cusName As String) As String
     Dim query As String
     Dim params() As Variant
 
-    query = fso.OpenTextFile(Config.QUERY_PATH & "KioskCustomer.sql", ForReading).ReadAll()
+    query = fso.OpenTextFile(config.QUERY_PATH & "KioskCustomer.sql", ForReading).ReadAll()
     params = Array("ct.Abbreviation," & cusName)
     
     Call SQLQuery(queryString:=query, conn_enum:=Connections.Kiosk, params:=params)
@@ -161,7 +161,7 @@ Public Function GetProductionInfo(jobNum As String, opNum As String) As Variant(
     Dim query As String
     Dim params() As Variant
     
-    query = Split(fso.OpenTextFile(Config.QUERY_PATH & "ProductionInfo.sql", ForReading).ReadAll(), ";")(0)
+    query = Split(fso.OpenTextFile(config.QUERY_PATH & "ProductionInfo.sql", ForReading).ReadAll(), ";")(0)
     params = Array("ld.JobNum," & jobNum, "ld.OprSeq," & opNum)
     
     'TODO:set the onError
@@ -177,7 +177,7 @@ Public Function GetProductionInfoSUM(jobNum As String, opNum As String) As Varia
     Dim query As String
     Dim params() As Variant
     
-    query = Split(fso.OpenTextFile(Config.QUERY_PATH & "ProductionInfo.sql", ForReading).ReadAll(), ";")(1)
+    query = Split(fso.OpenTextFile(config.QUERY_PATH & "ProductionInfo.sql", ForReading).ReadAll(), ";")(1)
     params = Array("ld.JobNum," & jobNum, "ld.OprSeq," & opNum)
     
     
@@ -197,7 +197,7 @@ Function Get1XSHIFTInsps(JobID As String, Operation As Variant) As String
     Dim params() As Variant
     
     On Error GoTo shiftErr
-    query = fso.OpenTextFile(Config.QUERY_PATH & "1XSHIFT.sql").ReadAll
+    query = fso.OpenTextFile(config.QUERY_PATH & "1XSHIFT.sql").ReadAll
     params = Array("jo.JobNum," & JobID, "jo.OprSeq," & Operation)
     
     Call SQLQuery(queryString:=query, conn_enum:=Connections.E10, params:=params)
@@ -220,7 +220,7 @@ Public Function GetEmployeeListSum(jobNum As String, faRoutine As String) As Var
     Dim query As String
     Dim params() As Variant
     
-    query = Split(fso.OpenTextFile(Config.QUERY_PATH & "MLMeasurementInfo.sql", ForReading).ReadAll(), ";")(0)
+    query = Split(fso.OpenTextFile(config.QUERY_PATH & "MLMeasurementInfo.sql", ForReading).ReadAll(), ";")(0)
     params = Array("r.RunName," & jobNum, "rt.RoutineName," & faRoutine, "r.RunName," & jobNum, "rt.RoutineName," & faRoutine)
     
     On Error GoTo QueryError
@@ -248,7 +248,7 @@ Public Function GetJobUnqiueRoutines(partnum As String, rev As String, faRoutine
     Dim query As String
     Dim params() As Variant
     
-    query = fso.OpenTextFile(Config.QUERY_PATH & "MLUniqueRoutineList.sql", ForReading).ReadAll()
+    query = fso.OpenTextFile(config.QUERY_PATH & "MLUniqueRoutineList.sql", ForReading).ReadAll()
 '    query = Replace(query, "{FA_TYPE}", faRoutine)
     params = Array("p.PartName," & partnum & "_" & rev, "rt.RoutineName," & faRoutine)
     
@@ -277,7 +277,7 @@ Public Function GetEmployeeInspCount(jobNum As String, faRoutine As String, empl
     Dim query As String
     Dim params() As Variant
     
-    query = Split(fso.OpenTextFile(Config.QUERY_PATH & "MLMeasurementInfo.sql", ForReading).ReadAll(), ";")(1)
+    query = Split(fso.OpenTextFile(config.QUERY_PATH & "MLMeasurementInfo.sql", ForReading).ReadAll(), ";")(1)
     query = Replace(query, "{Employees}", employees)
     params = Array("r.RunName," & jobNum, "rt.RoutineName," & faRoutine, "r.RunName," & jobNum, "rt.RoutineName," & faRoutine)
     
@@ -300,7 +300,7 @@ Private Function PartMLReady(partnum As String, revNum As String) As Variant
     Dim query As String
     Dim params() As Variant
     
-    query = fso.OpenTextFile(Config.QUERY_PATH & "PartMLReady.sql", ForReading).ReadAll()
+    query = fso.OpenTextFile(config.QUERY_PATH & "PartMLReady.sql", ForReading).ReadAll()
     params = Array("pr.PartNum," & partnum, "pr.RevisionNum," & revNum)
 
     Call SQLQuery(queryString:=query, conn_enum:=Connections.E10, params:=params)

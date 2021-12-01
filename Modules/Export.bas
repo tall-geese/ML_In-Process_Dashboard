@@ -6,7 +6,7 @@ Sub ExportModules()
     projName = ThisWorkbook.Name
     
     Dim saveDirectory As String
-    saveDirectory = InputBox("Add save location", , Config.SAVE_PATH)
+    saveDirectory = InputBox("Add save location", , config.SAVE_PATH)
         
     For Each comp In Workbooks(projName).VBProject.VBComponents
         Dim extension As String
