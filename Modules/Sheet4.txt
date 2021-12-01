@@ -41,13 +41,13 @@ Public Function GetEmpInspData(jobNum As String, partNumber As String, rev As St
         GoTo 10
     End If
 
-    Set jobCell = Range("A1:A" & Cells(Rows.Count, 1).End(xlUp).Row).Find(jobNum, MatchCase:=False)
+    Set jobCell = Range("A1:A" & Cells(Rows.Count, 1).End(xlUp).row).Find(jobNum, MatchCase:=False)
     
         'Job Hasn't been loaded yet
     If jobCell Is Nothing Then
         'Do the same as above where we set the last row found  +  the inspections in it
             'Find the bottom most cell in either the Job Col or the Routine Col, we doe the +3 here to space thigns out a little bit
-        Set jobCell = Range("A" & Application.WorksheetFunction.Max(Cells(Rows.Count, 1).End(xlUp).Row + 3, Cells(Rows.Count, 2).End(xlUp).Row + 3))
+        Set jobCell = Range("A" & Application.WorksheetFunction.Max(Cells(Rows.Count, 1).End(xlUp).row + 3, Cells(Rows.Count, 2).End(xlUp).row + 3))
         Call LoadMeasurementInfo(targetCell:=jobCell, jobNum:=jobNum, partNumber:=partNumber, rev:=rev, faType:=faType)
     End If
 
@@ -59,7 +59,7 @@ Public Function GetEmpInspData(jobNum As String, partNumber As String, rev As St
     Dim rtRange As Range
     Set rtRange = jobCell.Offset(1, 1)
     'If rtRange.Offset(1, 0).Value <> "" Then Set rtRange = Range(rtRange.Address & ":B" & rtRange.Row + rtRange.End(xlDown).Row - 1)
-    If rtRange.Offset(1, 0).Value <> "" Then Set rtRange = Range(rtRange.Address & ":B" & rtRange.End(xlDown).Row - 1) 'Dont include the SUM()
+    If rtRange.Offset(1, 0).Value <> "" Then Set rtRange = Range(rtRange.Address & ":B" & rtRange.End(xlDown).row - 1) 'Dont include the SUM()
     
     'Return the list of routines
     Set GetEmpInspData = rtRange
@@ -71,7 +71,7 @@ Public Function GetEmpInspDataSUM(jobNum As String, ByRef empRange As Range, ByR
     
 'Find/Set the Job
     Dim jobCell As Range
-    Set jobCell = Range("A1:A" & Cells(Rows.Count, 1).End(xlUp).Row).Find(jobNum, MatchCase:=False)
+    Set jobCell = Range("A1:A" & Cells(Rows.Count, 1).End(xlUp).row).Find(jobNum, MatchCase:=False)
     
     'If the job didnt have any routines, then return nothing
     If jobCell.Offset(1, 0) <> "" Or jobCell.Offset(1, 1).Value = "" Then Exit Function
@@ -98,7 +98,7 @@ Public Function GetEmpInspDataSUM(jobNum As String, ByRef empRange As Range, ByR
 
     colors = sumRange
     Set sumRange = sumRange.Offset(-1, 0)
-    Set empRange = sumRange.Offset(jobCell.Row - sumRange.Row, 0)
+    Set empRange = sumRange.Offset(jobCell.row - sumRange.row, 0)
 
     'Return the range of inspection counts
     Set GetEmpInspDataSUM = sumRange
@@ -136,7 +136,7 @@ Private Sub LoadMeasurementInfo(targetCell As Range, jobNum As String, partNumbe
     If (Not routines) = -1 Then Exit Sub
     
     Dim rtFillRange As Range
-    Set rtFillRange = Range(Cells(targetCell.Row + 1, 2), Cells(targetCell.Row + 1 + UBound(routines, 2), 2))
+    Set rtFillRange = Range(Cells(targetCell.row + 1, 2), Cells(targetCell.row + 1 + UBound(routines, 2), 2))
     rtFillRange = Application.WorksheetFunction.Transpose(routines)
 
     
@@ -247,7 +247,7 @@ Private Function GetLastRoutine(jobCell As Range) As Range
     If jobCell.Offset(2, 1).Value = "" Then
         Set GetLastRoutine = jobCell.Offset(1, 1)
     Else
-        Set GetLastRoutine = Cells(jobCell.Offset(1, 1).End(xlDown).Row, 2)
+        Set GetLastRoutine = Cells(jobCell.Offset(1, 1).End(xlDown).row, 2)
     End If
 
 End Function

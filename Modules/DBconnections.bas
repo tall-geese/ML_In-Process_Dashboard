@@ -189,6 +189,32 @@ Public Function GetProductionInfoSUM(jobNum As String, opNum As String) As Varia
 
 End Function
 
+
+Function Get1XSHIFTInsps(JobID As String, Operation As Variant) As String
+    
+    Set fso = New FileSystemObject
+    Dim query As String
+    Dim params() As Variant
+    
+    On Error GoTo shiftErr
+    query = fso.OpenTextFile(Config.QUERY_PATH & "1XSHIFT.sql").ReadAll
+    params = Array("jo.JobNum," & JobID, "jo.OprSeq," & Operation)
+    
+    Call SQLQuery(queryString:=query, conn_enum:=Connections.E10, params:=params)
+    
+    Get1XSHIFTInsps = ResultRecordSet.Fields(1).Value
+    Exit Function
+    
+shiftErr:
+    If Err.Number = vbObjectError + 2000 Then
+        Get1XSHIFTInsps = "0"  'Technically, if we didnt run any shifts, we dont owe any inspections
+        Exit Function
+    Else
+        Err.Raise Number:=Err.Number, Description:="Func: E10-Get1XSHIFTInsps" & vbCrLf & Err.Description
+    End If
+    
+End Function
+
 Public Function GetEmployeeListSum(jobNum As String, faRoutine As String) As Variant()
     Set fso = New FileSystemObject
     Dim query As String

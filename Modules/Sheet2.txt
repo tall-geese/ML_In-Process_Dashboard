@@ -39,12 +39,12 @@ Public Function GetProductionLaborData(jobNum As String, opNum As String, ByRef 
     End If
     
         'Find the position of the job information
-    Set jobInd = Range("B1:B" & Range("B1").End(xlDown).Row).Find(What:=jobNum, MatchCase:=False)
+    Set jobInd = Range("B1:B" & Range("B1").End(xlDown).row).Find(What:=jobNum, MatchCase:=False)
     
     If jobInd Is Nothing Then
             'If we didnt find anything then get the next spot ready and set the information
                 'TODO: catch an error in the event that we returned no rows
-        Set jobInd = Range("B" & Range("B1").End(xlDown).Row + 1)
+        Set jobInd = Range("B" & Range("B1").End(xlDown).row + 1)
 10
         Call LoadProdLaborData(targetRange:=jobInd, jobNum:=jobNum, opNum:=opNum)
     End If
@@ -82,7 +82,7 @@ Public Function GetProductionLaborDataSUM(jobNum As String) As Range  '-> XValue
     End If
 
     Dim jobInd As Range
-    Set jobInd = Range("B1:B" & Range("B1").End(xlDown).Row).Find(What:=jobNum, MatchCase:=False)
+    Set jobInd = Range("B1:B" & Range("B1").End(xlDown).row).Find(What:=jobNum, MatchCase:=False)
 
     If jobInd Is Nothing Then
         'Raise an error, info should have been created by now
@@ -130,10 +130,10 @@ Private Sub LoadProdLaborData(targetRange As Range, jobNum As String, opNum As S
     arrDims = GetDimension(resultArr)
     
     If arrDims = 1 Then
-        Set fillRange = Range(Cells(targetRange.Row + 1, 1), Cells(targetRange.Row + 1, UBound(resultArr, 1)))   'If its a 1-d array
+        Set fillRange = Range(Cells(targetRange.row + 1, 1), Cells(targetRange.row + 1, UBound(resultArr, 1)))   'If its a 1-d array
 '        Set fillRange = Range(Cells(targetRange.Row + 1, 1), Cells(UBound(resultArr, 1) + targetRange.Row, 1))   'If its a 1-d array
     Else
-        Set fillRange = Range(Cells(targetRange.Row + 1, 1), Cells(UBound(resultArr, 1) + targetRange.Row, UBound(resultArr, 2)))   'If its a 2-d array
+        Set fillRange = Range(Cells(targetRange.row + 1, 1), Cells(UBound(resultArr, 1) + targetRange.row, UBound(resultArr, 2)))   'If its a 2-d array
     End If
     
     
@@ -158,9 +158,9 @@ Private Sub LoadProdLaborData(targetRange As Range, jobNum As String, opNum As S
     Dim aggFillRange As Range
     arrDims = GetDimension(aggResultArr)
     If arrDims = 1 Then
-        Set aggFillRange = Range(Cells(targetRange.Row + 1, 4), Cells(targetRange.Row + 1, UBound(aggResultArr, 1) + 3))
+        Set aggFillRange = Range(Cells(targetRange.row + 1, 4), Cells(targetRange.row + 1, UBound(aggResultArr, 1) + 3))
     Else
-        Set aggFillRange = Range(Cells(targetRange.Row + 1, 4), Cells(UBound(aggResultArr, 1) + targetRange.Row, UBound(aggResultArr, 2) + 3))
+        Set aggFillRange = Range(Cells(targetRange.row + 1, 4), Cells(UBound(aggResultArr, 1) + targetRange.row, UBound(aggResultArr, 2) + 3))
     End If
     aggFillRange = aggResultArr
     
@@ -173,11 +173,11 @@ Private Sub LoadProdLaborData(targetRange As Range, jobNum As String, opNum As S
     If arrDims = 1 Then  'If we returned only one result...
         Set empRange = Range(targetRange.Offset(0, 2), targetRange.Offset(1, 2))  'If we got this far than we should have at least one result
     Else
-        Set empRange = Range("D" & targetRange.Row & ":D" & Range("D" & targetRange.Row).End(xlDown).Row)
+        Set empRange = Range("D" & targetRange.row & ":D" & Range("D" & targetRange.row).End(xlDown).row)
     End If
     
             'For each unique Employee associate a color code with them
-    For Each subCell In Range("D" & targetRange.Row & ":D" & Range("D" & targetRange.Row).End(xlDown).Row)
+    For Each subCell In Range("D" & targetRange.row & ":D" & Range("D" & targetRange.row).End(xlDown).row)
         Dim color As Long
         Select Case i
             Case 0

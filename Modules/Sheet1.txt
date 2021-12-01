@@ -91,7 +91,7 @@ Public Sub AddCell(cellName As String)
     End If
     
     Dim headerRange As Range
-    Set headerRange = Range("A" & lastCellRange.Row & ":" & "H" & lastCellRange.Row)
+    Set headerRange = Range("A" & lastCellRange.row & ":" & "H" & lastCellRange.row)
     With headerRange
         .Font.ColorIndex = 2
         .Font.Size = 8
@@ -123,7 +123,7 @@ Public Sub AddJob(jobInfo() As Variant)
     'TODO: check if the lastCellRange is Nothing, in which case, we should error out
     Set lastCellRange = lastCellRange.Offset(1, 0)
     Dim jobRange As Range
-    Set jobRange = Range("B" & lastCellRange.Row & ":" & "H" & lastCellRange.Row)
+    Set jobRange = Range("B" & lastCellRange.row & ":" & "H" & lastCellRange.row)
     jobRange = jobInfo
     jobRange.HorizontalAlignment = xlCenter
     With jobRange.Borders(xlEdgeBottom)
@@ -132,20 +132,20 @@ Public Sub AddJob(jobInfo() As Variant)
         .Weight = xlThin
     End With
     
-    Range("G" & lastCellRange.Row).HorizontalAlignment = xlLeft
+    Range("G" & lastCellRange.row).HorizontalAlignment = xlLeft
     If lastCellRange.Offset(0, 7).Value = "[Setup]" Then
         lastCellRange.EntireRow.Font.color = RGB(128, 128, 128)
     End If
     
         'Put some dummy text under status to prevent desc. overflow
-    With Cells(lastCellRange.Row, 8)
+    With Cells(lastCellRange.row, 8)
         If .Value = "" Then
             .Value = "."
         End If
         .Font.color = RGB(255, 255, 255)
     End With
     
-    SetPicture Range("H" & lastCellRange.Row)
+    SetPicture Range("H" & lastCellRange.row)
     
     
 End Sub
@@ -220,7 +220,7 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
         Range("J2:J8").Value = ""
         Target.Offset(0, -1).Value = ">"
         Range("K2:N8").Interior.ColorIndex = 0
-        Range(Target.Address & ":N" & Target.Row).Interior.color = RGB(101, 215, 255)
+        Range(Target.Address & ":N" & Target.row).Interior.color = RGB(101, 215, 255)
         
         Select Case Target.Address
             Case "$K$2"  'Setup
@@ -248,13 +248,13 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
         For Each subCell In jobRange
                 'reset previously highlighted cells to blank
             If subCell.Interior.color = RGB(101, 215, 255) Then
-                Range("B" & subCell.Row & ":" & "H" & subCell.Row).Interior.ColorIndex = 0
+                Range("B" & subCell.row & ":" & "H" & subCell.row).Interior.ColorIndex = 0
             End If
     
                 'set the intersection row of the selected job to blue bg
                 'TODO: EntireRow checks are slow, we should only have a selectable area anyway, try and limit this
             If Not (Application.Intersect(subCell, Target.EntireRow) Is Nothing) Then
-                Range("B" & subCell.Row & ":" & "H" & subCell.Row).Interior.color = RGB(101, 215, 255)
+                Range("B" & subCell.row & ":" & "H" & subCell.row).Interior.color = RGB(101, 215, 255)
                 validSelection = True
             End If
             
@@ -267,10 +267,10 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
         If validSelection = False Then GoTo 10  'If they selected a header or something then leave after unsetting the previous selection
         
         Dim jobCell As Range
-        Set jobCell = Target.Offset(0, GetCol("Job#") - Target.Column)
+        Set jobCell = Target.Offset(0, GetCol("Job#") - Target.column)
         If jobCell.Value = "" Then GoTo 10
         Dim rowNum As Integer
-        rowNum = Sheets("ShopLoad").GetJobInd(jobCell.Value).Row
+        rowNum = Sheets("ShopLoad").GetJobInd(jobCell.Value).row
                                                 
             'Update the JobInfo Viewport
         Call updatedJobInfo(rowNumber:=rowNum, jobCell:=jobCell)
@@ -325,9 +325,9 @@ Private Sub updatedJobInfo(rowNumber As Integer, jobCell As Range)
     Dim indRange As Range
     Set indRange = Sheets("ShopLoad").Range("A" & rowNumber)
     
-    Range("K1").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("JobNum") - indRange.Column).Value  'Job# Header
-    Range("K3").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("FA Type") - indRange.Column).Value
-    Range("M3").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Set%") - indRange.Column).Value & "%"
+    Range("K1").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("JobNum") - indRange.column).Value  'Job# Header
+    Range("K3").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("FA Type") - indRange.column).Value
+    Range("M3").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Set%") - indRange.column).Value & "%"
     
     If Range("M3").Value = "100%" Then
         Range("N3").Value = "þ"
@@ -335,10 +335,10 @@ Private Sub updatedJobInfo(rowNumber As Integer, jobCell As Range)
         Range("N3").Value = "o"
     End If
     
-    Range("N5").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("AQL") - indRange.Column).Value
-    Range("K7").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Qty Complete") - indRange.Column).Value
-    Range("M7").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Run Qty") - indRange.Column).Value
-    Range("N8").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Est Rem Hrs") - indRange.Column).Value
+    Range("N5").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("AQL") - indRange.column).Value
+    Range("K7").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Qty Complete") - indRange.column).Value
+    Range("M7").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Run Qty") - indRange.column).Value
+    Range("N8").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Est Rem Hrs") - indRange.column).Value
     
     
     'TODO: This will also require an update to the sparkline in the Parts Completed/ Required section
@@ -347,7 +347,7 @@ Private Sub updatedJobInfo(rowNumber As Integer, jobCell As Range)
     Dim valRange As Range
     Dim opNum As String
     Set indCell = Sheets("ShopLoad").GetJobInd(jobCell.Value)
-    opNum = indCell.Offset(0, Sheets("ShopLoad").GetCol("Op Seq") - indCell.Column).Value
+    opNum = indCell.Offset(0, Sheets("ShopLoad").GetCol("Op Seq") - indCell.column).Value
     
     On Error GoTo NoInfoErr
     Set valRange = Sheets("ProdInfo").GetProductionLaborData(jobNum:=jobCell.Value, opNum:=opNum, colors:=colors)
@@ -424,7 +424,7 @@ Private Sub CreatePrdHoursDoughnut(Optional jobCell As Range)
     colors(1, 3) = Config.COLOR_1
     colors(2, 3) = Config.COLOR_8
     
-    Set Yrange = indCell.Offset(0, Sheets("ShopLoad").GetCol("Prod Hrs") - indCell.Column)
+    Set Yrange = indCell.Offset(0, Sheets("ShopLoad").GetCol("Prod Hrs") - indCell.column)
     Set Yrange = Application.Union(Yrange, Yrange.Offset(0, 1))
     
     Set Xrange = Sheets("ShopLoad").Range("$I$1:$J$1")
@@ -447,7 +447,7 @@ Private Sub CreateLaborQtyDoughnut(Optional jobCell As Range)
     Dim colors() As Variant
     Dim lastActiveCell As Range
     Set indCell = Sheets("ShopLoad").GetJobInd(jobCell.Value)
-    opNum = indCell.Offset(0, Sheets("ShopLoad").GetCol("Op Seq") - indCell.Column).Value
+    opNum = indCell.Offset(0, Sheets("ShopLoad").GetCol("Op Seq") - indCell.column).Value
     
     Set lastActiveCell = activeCell
        
@@ -546,9 +546,9 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
     jobCell.Activate
     
     Set indCell = Sheets("ShopLoad").GetJobInd(jobCell.Value)
-    partnum = indCell.Offset(0, Sheets("ShopLoad").GetCol("Part#") - indCell.Column).Value
-    rev = indCell.Offset(0, Sheets("ShopLoad").GetCol("Rev") - indCell.Column).Value
-    faType = indCell.Offset(0, Sheets("ShopLoad").GetCol("FA Type") - indCell.Column).Value
+    partnum = indCell.Offset(0, Sheets("ShopLoad").GetCol("Part#") - indCell.column).Value
+    rev = indCell.Offset(0, Sheets("ShopLoad").GetCol("Rev") - indCell.column).Value
+    faType = indCell.Offset(0, Sheets("ShopLoad").GetCol("FA Type") - indCell.column).Value
     
     Set rtRange = Sheets("MeasurementInfo").GetEmpInspData(jobNum:=jobCell.Value, partNumber:=partnum, _
                                                     rev:=rev, faType:=faType)
@@ -616,7 +616,7 @@ Private Sub CreateLaborQtyTimeSeries(Optional jobCell As Range)
     Dim colors() As Variant
     Dim lastActiveCell As Range
     Set indCell = Sheets("ShopLoad").GetJobInd(jobCell.Value)
-    opNum = indCell.Offset(0, Sheets("ShopLoad").GetCol("Op Seq") - indCell.Column).Value
+    opNum = indCell.Offset(0, Sheets("ShopLoad").GetCol("Op Seq") - indCell.column).Value
     
     Set lastActiveCell = activeCell
     
@@ -771,7 +771,7 @@ End Sub
 
 Private Sub CreateTimeSeriesChart(Xrange As Range, Yrange As Range, empRange As Range, colors() As Variant)
     
-    Set lineChart = Me.Shapes.AddChart2(-1, xlLineMarkers, left:=720, top:=ActiveWindow.VisibleRange.top + 360, Height:=170, Width:=415)
+    Set lineChart = Me.Shapes.AddChart2(-1, xlLineMarkers, left:=660, top:=ActiveWindow.VisibleRange.top + 360, Height:=170, Width:=415)
     lineChart.Name = "Line"
     
     If Xrange Is Nothing Or Yrange Is Nothing Then
