@@ -792,16 +792,16 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
         Select Case (j - i)
             Case 0
                 xVal = currentAQL
-                config(0) = "Curr AQL" & vbCrLf & currentAQL
+                config(0) = "Curr AQL" & vbCrLf & "{" & currentAQL & "}"
                 config(1) = 21759
             Case 1
                 xVal = finalAQL
-                config(0) = "AQL" & vbCrLf & finalAQL
+                config(0) = "AQL" & vbCrLf & "{" & finalAQL & "}"
                 config(1) = 48639
             Case 2
                 If shiftsWorked = 0 Then GoTo nextSeries
                 xVal = shiftsWorked
-                config(0) = "1XSFT" & vbCrLf & shiftsWorked
+                config(0) = "1XSHIFT" & vbCrLf & "{" & shiftsWorked & "}"
                 config(1) = 5505279
             Case Else
                 MsgBox "we shouldnt be here"
@@ -829,6 +829,10 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
        
 nextSeries:
     Next j
+    
+'Apply formatting to the TOTAL Series
+    
+    
     
     barChart.Chart.Axes(xlValue, xlSecondary).MaximumScale = 1
     barChart.Chart.Axes(xlValue, xlPrimary).MaximumScale = finalAQL + 1

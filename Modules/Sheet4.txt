@@ -98,6 +98,7 @@ Public Function GetEmpInspDataSUM(jobNum As String, ByRef empRange As Range, ByR
 
     colors = sumRange
     Set sumRange = sumRange.Offset(-1, 0)
+    Set sumRange = Range(sumRange.Cells(1), sumRange.Cells(sumRange.Count - 1))
     Set empRange = sumRange.Offset(jobCell.row - sumRange.row, 0)
 
     'Return the range of inspection counts
@@ -149,9 +150,16 @@ Private Sub LoadMeasurementInfo(targetCell As Range, jobNum As String, partNumbe
     End If
     
     Dim empFillRange As Range
+    Dim empCell As Range
     Set empFillRange = Range(targetCell.Offset(0, 2), targetCell.Offset(0, UBound(employees, 2) + 2))
     empFillRange = employees
 
+        'Put leading 0's in employee #'s
+    For Each empCell In empFillRange
+        If InStr(empCell.Value, "?") = 0 Then
+            empCell.NumberFormat = "0000"
+        End If
+    Next empCell
     
 'Data
     For i = 0 To UBound(employees, 2)
@@ -207,6 +215,20 @@ NextRow:
     Next i
     
 20
+
+'TOTAL column
+    Dim totalCell As Range
+    Set totalCell = empFillRange.Cells(empFillRange.Count).Offset(0, 1)
+    totalCell.Value = "TOTAL"
+    
+    For i = 1 To rtFillRange.Count
+        With totalCell.Offset(i, 0)
+            .Formula = "=SUM(" & .Offset(0, -empFillRange.Count).Address & ":" & .Offset(0, -1).Address & ")"
+        End With
+    Next i
+    
+
+
         'Remove the Leading PartNum_Rev_ from routine name, it just takes up space
     For Each rtCell In rtFillRange
         rtCell.Value = Replace(rtCell.Value, partNumber & "_" & rev & "_", "")
@@ -226,7 +248,7 @@ SetSum:
     Next i
     
 'Color setting
-    For i = 1 To UBound(employees, 2) + 1
+    For i = 1 To UBound(employees, 2) + 2
         With sumCell.Offset(1, i)
             Select Case i
             Case 0

@@ -116,7 +116,7 @@ End Function
         'Sets jobInformation from sql Query
 Private Sub LoadProdLaborData(targetRange As Range, jobNum As String, opNum As String)
     
-        'Set the time series of
+'Set the time series of Submitted Good Parts
     targetRange.Value = jobNum
     Dim resultArr() As Variant
         'TODO: ready to capture an error in the event that there is no production, like setup perhaps
@@ -131,7 +131,6 @@ Private Sub LoadProdLaborData(targetRange As Range, jobNum As String, opNum As S
     
     If arrDims = 1 Then
         Set fillRange = Range(Cells(targetRange.row + 1, 1), Cells(targetRange.row + 1, UBound(resultArr, 1)))   'If its a 1-d array
-'        Set fillRange = Range(Cells(targetRange.Row + 1, 1), Cells(UBound(resultArr, 1) + targetRange.Row, 1))   'If its a 1-d array
     Else
         Set fillRange = Range(Cells(targetRange.row + 1, 1), Cells(UBound(resultArr, 1) + targetRange.row, UBound(resultArr, 2)))   'If its a 2-d array
     End If
@@ -150,7 +149,7 @@ Private Sub LoadProdLaborData(targetRange As Range, jobNum As String, opNum As S
     
     If (Not resultArr) = -1 Then Exit Sub
     
-        'Get the SUM of All submitted parts by employee
+'Set the SUM of All submitted parts by employee
     Dim aggResultArr() As Variant
     aggResultArr = DBconnections.GetProductionInfoSUM(jobNum:=jobNum, opNum:=opNum)
     aggResultArr = Application.WorksheetFunction.Transpose(aggResultArr)
@@ -170,14 +169,19 @@ Private Sub LoadProdLaborData(targetRange As Range, jobNum As String, opNum As S
     i = 0
     
         
-    If arrDims = 1 Then  'If we returned only one result...
+    If arrDims = 1 Then  'If we returned only one result, its a 1-D array...
         Set empRange = Range(targetRange.Offset(0, 2), targetRange.Offset(1, 2))  'If we got this far than we should have at least one result
     Else
         Set empRange = Range("D" & targetRange.row & ":D" & Range("D" & targetRange.row).End(xlDown).row)
     End If
     
             'For each unique Employee associate a color code with them
-    For Each subCell In Range("D" & targetRange.row & ":D" & Range("D" & targetRange.row).End(xlDown).row)
+'    For Each subCell In Range("D" & targetRange.row & ":D" & Range("D" & targetRange.row).End(xlDown).row)
+    For Each subCell In empRange
+        If i <> 0 Then
+            subCell.NumberFormat = "0000"
+        End If
+    
         Dim color As Long
         Select Case i
             Case 0
