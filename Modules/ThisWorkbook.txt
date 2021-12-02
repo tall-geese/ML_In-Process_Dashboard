@@ -39,7 +39,9 @@ Private Sub DisableEvents()
 End Sub
 
 Private Sub printColor()
-    Debug.Print (RGB(161, 255, 10) & " lime green" & vbCrLf)
+    Debug.Print (RGB(128, 128, 128) & " " & vbCrLf)
+'    Debug.Print (RGB(255, 0, 84) & " " & vbCrLf)
+'    Debug.Print (RGB(255, 189, 0) & " " & vbCrLf)
 
 End Sub
 

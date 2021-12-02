@@ -167,9 +167,11 @@ Private Sub SetPicture(Target As Range)
             Exit Sub
     End Select
     
-    Target.Value = ""
+    
+    
+    Target.Value = " "
     If picAddy = "" Then Exit Sub
-    Set picture = Shapes.AddPicture(picAddy, False, True, top:=Target.top, left:=Target.left + 15, Height:=20, Width:=20)
+    Set picture = Shapes.AddPicture(picAddy, False, True, Top:=Target.Top, Left:=Target.Left + 15, Height:=20, Width:=20)
     
     If colorFill <> 0 Then
         picture.Fill.ForeColor.RGB = colorFill
@@ -186,9 +188,9 @@ End Sub
 
 
 
-'************************************************************
-'****************   Event Callbacks   ***********************
-'************************************************************
+                                    '************************************************************
+                                    '****************   Event Callbacks   ***********************
+                                    '************************************************************
 
 
 
@@ -316,9 +318,9 @@ selectionErr:
     GoTo 10
 End Sub
 
-'************************************************************
-'****************   JobInfo Viewport   **********************
-'************************************************************
+                                    '************************************************************
+                                    '****************   JobInfo Viewport   **********************
+                                    '************************************************************
 
 'Called by _SelectionChange
 Private Sub updatedJobInfo(rowNumber As Integer, jobCell As Range)
@@ -341,7 +343,6 @@ Private Sub updatedJobInfo(rowNumber As Integer, jobCell As Range)
     Range("N8").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Est Rem Hrs") - indRange.column).Value
     
     
-    'TODO: This will also require an update to the sparkline in the Parts Completed/ Required section
     Dim colors() As Variant
     Dim indCell As Range
     Dim valRange As Range
@@ -394,13 +395,17 @@ Private Function GetJobInfoSelection() As Range
     
 End Function
 
-'************************************************************
-'**************   Chart Call Routines   *********************
-'************************************************************
+
+
+
+                                        '************************************************************
+                                        '**************   Chart Call Routines   *********************
+                                        '************************************************************
 'These are called by the _onSelectionChange
 'Get the job cell and then create the data structures and pass to Main Chart Creation Routines
     'For them to do their thing
 
+                                        '-----------------   Doughnuts   ----------------------
 
 Private Sub CreatePrdHoursDoughnut(Optional jobCell As Range)
     If jobCell Is Nothing Then
@@ -484,8 +489,6 @@ NoInfoErr:
 End Sub
 
 
-
-    '***********Work in Progress***************
 Private Sub CreateInspDoughnut(Optional jobCell As Range)
     If jobCell Is Nothing Then
         Set jobCell = GetActiveJob()
@@ -527,6 +530,7 @@ Private Sub CreateInspDoughnut(Optional jobCell As Range)
 End Sub
 
 
+                                                '-----------------   Bar/Lines   ----------------------
 
 Private Sub CreateInspBarChart(Optional jobCell As Range)
     If jobCell Is Nothing Then
@@ -666,13 +670,13 @@ End Sub
 
 
 
-'************************************************************
-'*********   MAIN Chart Creation Routines   *****************
-'************************************************************
+                                        '************************************************************
+                                        '*********   MAIN Chart Creation Routines   *****************
+                                        '************************************************************
 
 Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Variant)
     
-    Set pieChart = Me.Shapes.AddChart2(-1, xlDoughnutExploded, left:=850, top:=ActiveWindow.VisibleRange.top + 5, Height:=160, Width:=220)
+    Set pieChart = Me.Shapes.AddChart2(-1, xlDoughnutExploded, Left:=850, Top:=ActiveWindow.VisibleRange.Top + 5, Height:=160, Width:=220)
     pieChart.Name = "Doughnut"
     
     With pieChart.Chart
@@ -688,8 +692,8 @@ Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Var
         .Legend.Position = xlRight
         .Legend.Height = 75
         .Legend.Width = 60
-        .Legend.top = 40
-        .Legend.left = 155
+        .Legend.Top = 40
+        .Legend.Left = 200
     End With
 
     
@@ -716,18 +720,18 @@ Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Var
             .Points(i).Format.Fill.ForeColor.RGB = colors(i, 3)
             .Points(i).DataLabel.Select
             
-            leftOut = GetOuterLblLeft(lblLeft:=.Points(i).DataLabel.left, lblTop:=.Points(i).DataLabel.top, lblWidth:=.Points(i).DataLabel.Width, lblHeight:=.Points(i).DataLabel.Height, _
-                                chtLeft:=pieChart.Chart.PlotArea.left, chtTop:=pieChart.Chart.PlotArea.top, chtWidth:=pieChart.Chart.PlotArea.Width, chtHeight:=pieChart.Chart.PlotArea.Height, percIncrease:=0.85)
+            leftOut = GetOuterLblLeft(lblLeft:=.Points(i).DataLabel.Left, lblTop:=.Points(i).DataLabel.Top, lblWidth:=.Points(i).DataLabel.Width, lblHeight:=.Points(i).DataLabel.Height, _
+                                chtLeft:=pieChart.Chart.PlotArea.Left, chtTop:=pieChart.Chart.PlotArea.Top, chtWidth:=pieChart.Chart.PlotArea.Width, chtHeight:=pieChart.Chart.PlotArea.Height, percIncrease:=0.85)
                                 
             
             
-            topOut = GetOuterLblTop(lblLeft:=.Points(i).DataLabel.left, lblTop:=.Points(i).DataLabel.top, lblWidth:=.Points(i).DataLabel.Width, lblHeight:=.Points(i).DataLabel.Height, _
-                                chtLeft:=pieChart.Chart.PlotArea.left, chtTop:=pieChart.Chart.PlotArea.top, chtWidth:=pieChart.Chart.PlotArea.Width, chtHeight:=pieChart.Chart.PlotArea.Height, percIncrease:=0.85)
+            topOut = GetOuterLblTop(lblLeft:=.Points(i).DataLabel.Left, lblTop:=.Points(i).DataLabel.Top, lblWidth:=.Points(i).DataLabel.Width, lblHeight:=.Points(i).DataLabel.Height, _
+                                chtLeft:=pieChart.Chart.PlotArea.Left, chtTop:=pieChart.Chart.PlotArea.Top, chtWidth:=pieChart.Chart.PlotArea.Width, chtHeight:=pieChart.Chart.PlotArea.Height, percIncrease:=0.85)
                                 
 
                 'TODO: for whatever reason, this behaves differently when run in debug Mode
-            .Points(i).DataLabel.left = leftOut
-            .Points(i).DataLabel.top = topOut
+            .Points(i).DataLabel.Left = leftOut
+            .Points(i).DataLabel.Top = topOut
             
         Next i
     
@@ -737,13 +741,11 @@ Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Var
 End Sub
 
 
-    '*******work in progress********
 Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Range, colorRange As Range, _
                                 shiftsWorked As Integer, finalAQL As Integer, currentAQL As Integer)
     
-    Set barChart = Me.Shapes.AddChart2(-1, xlBarStacked, left:=660, top:=ActiveWindow.VisibleRange.top + 360, Height:=170, Width:=415)
+    Set barChart = Me.Shapes.AddChart2(-1, xlBarStacked, Left:=660, Top:=ActiveWindow.VisibleRange.Top + 360, Height:=170, Width:=415)
     barChart.Name = "Bar"
-    'TODO: we should clear the contents out of the chart here, problems with the active cell
     
     If Xrange Is Nothing Or Yrange.Count = 0 Then
         Dim coll As Excel.Series
@@ -758,7 +760,7 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
     End If
     
     barChart.Chart.ApplyChartTemplate (ThisWorkbook.path & "\templates\BarChartSum.crtx")
-    barChart.Chart.ChartTitle.Caption = Xrange.Cells(1).Offset(-1, -1).Value
+    barChart.Chart.ChartTitle.Caption = " "
 
     Dim i As Integer
     Dim Yvalues As Range
@@ -779,13 +781,7 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
     Next Yvalues
     
     
-    'Start making new series, beginning with the last i.
-    'Right now we are adding 3 flags:
-    '   The Final AQL, the Current AQL needed, And the 1XSHIFT Req.
-
-    'So start with the current i to i + 3
-    
-    Dim config(3) As String
+    Dim config(1) As Variant
     Dim j As Integer
     j = i
     
@@ -793,21 +789,20 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
         Dim xVal As Integer
         Dim lookupTerm As String
         
-            'TODO Change this so that the shiftWorked gets checked last, so there is no misalignment
         Select Case (j - i)
             Case 0
                 xVal = currentAQL
                 config(0) = "Curr AQL" & vbCrLf & currentAQL
-                config(1) = RGB(128, 128, 128)
+                config(1) = 21759
             Case 1
                 xVal = finalAQL
                 config(0) = "AQL" & vbCrLf & finalAQL
-                config(1) = RGB(128, 128, 128)
+                config(1) = 48639
             Case 2
                 If shiftsWorked = 0 Then GoTo nextSeries
                 xVal = shiftsWorked
                 config(0) = "1XSFT" & vbCrLf & shiftsWorked
-                config(1) = RGB(128, 128, 128)
+                config(1) = 5505279
             Case Else
                 MsgBox "we shouldnt be here"
         
@@ -819,16 +814,16 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
             .Values = "={0,1}"
             .XValues = "={" & xVal & "," & xVal & "}"
             
-            .ForeColor.RGB = CSng(config(1))   'Currently where we're stuck
             .Format.Line.DashStyle = msoLineDash
             .Format.Line.Weight = 1.5
+            .Format.Line.ForeColor.RGB = config(1)
             
             .Points(2).ApplyDataLabels
             .DataLabels.Position = xlLabelPositionAbove
             .DataLabels(2).Format.TextFrame2.TextRange.InsertAfter config(0)
-            .DataLabels(2).Format.TextFrame2.TextRange.Fill.ForeColor.RGB = config(1)
-            .DataLabels(2).Format.TextFrame2.TextRange.Size = 9
-            .DataLabels(2).Format.TextFrame2.TextRange.italix = msoTrue
+            .Points(2).DataLabel.Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = config(1)
+            .Points(2).DataLabel.Format.TextFrame2.TextRange.Font.Size = 9
+            .Points(2).DataLabel.Format.TextFrame2.TextRange.Font.Italic = msoTrue
         End With
         
        
@@ -836,9 +831,9 @@ nextSeries:
     Next j
     
     barChart.Chart.Axes(xlValue, xlSecondary).MaximumScale = 1
+    barChart.Chart.Axes(xlValue, xlPrimary).MaximumScale = finalAQL + 1
+    barChart.Chart.Axes(xlValue, xlSecondary).Delete
     
-    
-    'TODO: see if we can make the visible axis hidden by default in the chart template
     
     
 
@@ -846,7 +841,7 @@ End Sub
 
 Private Sub CreateTimeSeriesChart(Xrange As Range, Yrange As Range, empRange As Range, colors() As Variant)
     
-    Set lineChart = Me.Shapes.AddChart2(-1, xlLineMarkers, left:=660, top:=ActiveWindow.VisibleRange.top + 360, Height:=170, Width:=415)
+    Set lineChart = Me.Shapes.AddChart2(-1, xlLineMarkers, Left:=660, Top:=ActiveWindow.VisibleRange.Top + 360, Height:=170, Width:=415)
     lineChart.Name = "Line"
     
     If Xrange Is Nothing Or Yrange Is Nothing Then
@@ -889,9 +884,9 @@ End Sub
 
 
 
-'************************************************************
-'***********   Worksheet Helper Functions   *****************
-'************************************************************
+                                    '************************************************************
+                                    '***********   Worksheet Helper Functions   *****************
+                                    '************************************************************
 
 
     'Return column # of the header

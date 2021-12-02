@@ -170,6 +170,27 @@ Private Sub LoadMeasurementInfo(targetCell As Range, jobNum As String, partNumbe
             'cant just post the whole range
     results = Application.WorksheetFunction.Transpose(results)
     
+    Dim dimSize As Integer
+    dimSize = GetDimension(results)
+    If dimSize = 2 Then GoTo 10
+    
+
+'1-D Array, set results
+    For Each rtCell In rtFillRange
+        If rtCell.Value = results(1) Then
+            For j = 1 To UBound(results)
+                If j = 1 Then GoTo NextDim
+                rtCell.Offset(0, j - 1).Value = results(j)
+NextDim:
+            Next j
+        End If
+    Next rtCell
+    
+    GoTo 20
+    
+     
+'2-D Array, set results
+10
     'Results are out of Order to the Routines we found earlier, need to iterate through and find the matching routines
     For i = 1 To UBound(results, 1)
         For Each rtCell In rtFillRange
@@ -185,6 +206,7 @@ NextCol:
 NextRow:
     Next i
     
+20
         'Remove the Leading PartNum_Rev_ from routine name, it just takes up space
     For Each rtCell In rtFillRange
         rtCell.Value = Replace(rtCell.Value, partNumber & "_" & rev & "_", "")
@@ -279,3 +301,25 @@ Private Sub TestGetSumCell()
     Dim a As Range
     Set a = GetEmpInspDataSUM(jobNum:="NV16728")
 End Sub
+
+
+
+'************************************************************
+'***********   Worksheet Helper Functions   *****************
+'************************************************************
+
+    'Called by LoadProdLaborData()
+        'If a recordSet one has a single row, then it returns as a 1d array, as opposed to the normal 2d
+Function GetDimension(var As Variant) As Long
+    On Error GoTo Err
+    Dim i As Long
+    Dim tmp As Long
+    i = 0
+    Do While True
+        i = i + 1
+        tmp = UBound(var, i)
+    Loop
+Err:
+    GetDimension = i - 1
+End Function
+

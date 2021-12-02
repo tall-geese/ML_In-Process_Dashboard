@@ -161,6 +161,8 @@ Public Function GetProductionInfo(jobNum As String, opNum As String) As Variant(
     Dim query As String
     Dim params() As Variant
     
+    On Error GoTo prodInfoErr
+    
     query = Split(fso.OpenTextFile(config.QUERY_PATH & "ProductionInfo.sql", ForReading).ReadAll(), ";")(0)
     params = Array("ld.JobNum," & jobNum, "ld.OprSeq," & opNum)
     
@@ -169,6 +171,15 @@ Public Function GetProductionInfo(jobNum As String, opNum As String) As Variant(
     
     If ResultRecordSet.EOF Then Exit Function
     GetProductionInfo = ResultRecordSet.GetRows()
+    
+    Exit Function
+    
+prodInfoErr:
+    If Err.Number = vbObjectError + 2000 Then  'No results returned
+        Exit Function
+    Else
+        Err.Raise Number:=Err.Number, Description:="Func: E10-Get1XSHIFTInsps" & vbCrLf & Err.Description
+    End If
 
 End Function
 
@@ -361,7 +372,7 @@ Function IsMeasurLinkJob(jobNumber As String, partNumber As String, PartRev As S
         MachineQueryCriteria = MachineQueryCriteria & " AND ud" & ReadyIndexCol(ReadyIndex) & ".CodeTypeID = 'PGRMRSRC'"
     Next ReadyIndex
     
-    MachineQuerySelect = left(MachineQuerySelect, Len(MachineQuerySelect) - 1) & " "
+    MachineQuerySelect = Left(MachineQuerySelect, Len(MachineQuerySelect) - 1) & " "
     
     MachineQueryFooter = " FROM EpicorLive10.dbo.PartRev pr " _
     

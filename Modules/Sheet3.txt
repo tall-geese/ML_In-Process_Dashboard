@@ -77,15 +77,15 @@ checkAbbr:
         Else
 10
             If parseAttempt = True Then GoTo IDError
-            If (Not (IsNumeric(left(jobNum, 1))) And Not (IsNumeric(Mid(jobNum, 2, 1)))) Then
-                If UCase(left(jobNum, 1)) = "R" Then
+            If (Not (IsNumeric(Left(jobNum, 1))) And Not (IsNumeric(Mid(jobNum, 2, 1)))) Then
+                If UCase(Left(jobNum, 1)) = "R" Then
                     If (IsNumeric(Mid(jobNum, 3, 1))) Then 'RD0000
-                        cusName = left(jobNum, 2)
+                        cusName = Left(jobNum, 2)
                     Else 'RNV0000
                         cusName = Mid(jobNum, 2, 2)
                     End If
                 Else 'NV0000
-                    cusName = left(jobNum, 2)
+                    cusName = Left(jobNum, 2)
                     If cusName = "QA" Or cusName = "ME" Then GoTo IDError 'TODO: assuming we got here with no project id, then we have to give up
                 End If
                 GoTo checkAbbr
@@ -278,7 +278,7 @@ Private Sub SetMLJobs()
         
         Dim jobInfo(0 To 6) As Variant
         With subCell
-            jobInfo(0) = left(.Offset(0, 1).Value, Len(.Offset(0, 1).Value) - 11) 'Machine
+            jobInfo(0) = Left(.Offset(0, 1).Value, Len(.Offset(0, 1).Value) - 11) 'Machine
             jobInfo(1) = .Offset(0, 3).Value 'Job#
             jobInfo(2) = .Offset(0, 4).Value 'Draw#
             jobInfo(3) = .Offset(0, 5).Value 'Part#
