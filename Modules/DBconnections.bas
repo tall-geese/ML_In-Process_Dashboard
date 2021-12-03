@@ -28,7 +28,7 @@ Private Sub InitConnection()
     If ML7DataBaseConnection Is Nothing Then
         
         Set ML7DataBaseConnection = New ADODB.Connection
-        ML7DataBaseConnection.ConnectionString = config.ML7TEST_CONN_STRING
+        ML7DataBaseConnection.ConnectionString = config.ML7_CONN_STRING
         ML7DataBaseConnection.Open
         
     End If

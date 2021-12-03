@@ -756,11 +756,11 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
         Next coll
         
         barChart.Chart.ChartTitle.Caption = "NO DATA"
-        barChart.Chart.ApplyChartTemplate (ThisWorkbook.path & "\templates\BarChartSum.crtx")
+'        barChart.Chart.ApplyChartTemplate (ThisWorkbook.path & "\templates\BarChartSum.crtx")
         Exit Sub
     End If
     
-    barChart.Chart.ApplyChartTemplate (ThisWorkbook.path & "\templates\BarChartSum.crtx")
+'    barChart.Chart.ApplyChartTemplate (ThisWorkbook.path & "\templates\BarChartSum.crtx")
     barChart.Chart.ChartTitle.Caption = " "
 
     Dim i As Integer
@@ -776,6 +776,12 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
             
             If i = 1 Then
                 .XValues = Xrange
+'                Debug.Print ("here")
+'                Dim k As Integer
+'                For k = 1 To UBound(.XValues)
+'                    Debug.Print (.XValues(k))
+'                Next k
+'
             End If
         End With
         i = i + 1
@@ -819,6 +825,10 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
             .Format.Line.Weight = 1.5
             .Format.Line.ForeColor.RGB = config(1)
             
+            If (j - i) = 0 Or (j - i) = 2 Then
+                .Format.Line.Transparency = 0.5
+            End If
+            
             .Points(2).ApplyDataLabels
             .DataLabels.Position = xlLabelPositionAbove
             .DataLabels(2).Format.TextFrame2.TextRange.InsertAfter config(0)
@@ -838,6 +848,42 @@ nextSeries:
         .DataLabels.Position = xlLabelPositionInsideBase
         .DataLabels.Format.TextFrame2.TextRange.Font.Size = 8
     End With
+    
+    Dim subCell As Range
+    Dim k As Integer
+    k = 1
+    
+    For Each subCell In Xrange
+        'eval the name of the routine, If its one of importance, then we apply a certain color to the data label.
+            'If that data labels value doesn't meet certain expectations then we go one step further, set properties to make the label stand out
+        
+        'Have to use Instr here, becuase we could have suffixes for upcoming operations appended at the end
+        If InStr(subCell.Value, "IP_1XSHIFT") > 0 Then
+        
+            With barChart.Chart.SeriesCollection(i - 1).DataLabels(k)
+                .Format.TextFrame2.TextRange.Font.Bold = True
+                .Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = 5505279  'Set the data label red for 1XSHIFT
+                If CInt(.Text) < shiftsWorked Then
+                    .Format.TextFrame2.TextRange.Font.Size = 18
+                End If
+            End With
+        
+        ElseIf InStr(subCell.Value, "IP_BENCH") > 0 Or InStr(subCell.Value, "IP_RAMPROG") > 0 Or InStr(subCell.Value, "IP_RAM") > 0 _
+                    Or InStr(subCell.Value, "IP_COMPAR") > 0 Or InStr(subCell.Value, "IP_SYLVAC") > 0 Or InStr(subCell.Value, "IP_CMM") > 0 Then
+            With barChart.Chart.SeriesCollection(i - 1).DataLabels(k)
+                .Format.TextFrame2.TextRange.Font.Bold = True
+                .Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = 21759  'Set the data label orange for AQL
+                
+                If CInt(.Text) < currentAQL Then
+                    .Format.TextFrame2.TextRange.Font.Size = 18
+                End If
+            End With
+        Else
+        End If
+        
+        k = k + 1
+    
+    Next subCell
     
     
 'Set the X and Y scales
@@ -859,7 +905,7 @@ Private Sub CreateTimeSeriesChart(Xrange As Range, Yrange As Range, empRange As 
         lineChart.Chart.SeriesCollection(1).XValues = vbEmpty
         lineChart.Chart.SeriesCollection(1).Values = vbEmpty
         lineChart.Chart.ChartTitle.Caption = "NO DATA"
-        lineChart.Chart.ApplyChartTemplate (ThisWorkbook.path & "\templates\LineSeries.crtx")
+'        lineChart.Chart.ApplyChartTemplate (ThisWorkbook.path & "\templates\LineSeries.crtx")
         Exit Sub
     End If
 
@@ -872,7 +918,7 @@ Private Sub CreateTimeSeriesChart(Xrange As Range, Yrange As Range, empRange As 
             .SeriesCollection(1).XValues = Xrange.Value
         End If
         .SeriesCollection(1).Values = Yrange
-        .ApplyChartTemplate (ThisWorkbook.path & "\templates\LineSeries.crtx")
+'        .ApplyChartTemplate (ThisWorkbook.path & "\templates\LineSeries.crtx")
         
         Dim i As Integer
         i = 1
