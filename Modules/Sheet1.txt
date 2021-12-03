@@ -607,6 +607,7 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
     currentAQL = indCell.Offset(0, Sheets("ShopLoad").GetCol("Curr Req") - indCell.column).Value
     
     
+    
     Call DestroyBottomCharts
     CreateBarChart Xrange:=rtRange, Yrange:=Yrange, empRange:=empRange, colorRange:=colorRange, _
                     shiftsWorked:=CInt(shiftsWorked), finalAQL:=CInt(finalAQL), currentAQL:=CInt(currentAQL)
@@ -676,7 +677,7 @@ End Sub
 
 Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Variant)
     
-    Set pieChart = Me.Shapes.AddChart2(-1, xlDoughnutExploded, Left:=850, Top:=ActiveWindow.VisibleRange.Top + 5, Height:=160, Width:=220)
+    Set pieChart = Me.Shapes.AddChart2(-1, xlDoughnutExploded, Left:=Range("J1").Left + 200, Top:=ActiveWindow.VisibleRange.Top + 5, Height:=160, Width:=220)
     pieChart.Name = "Doughnut"
     
     With pieChart.Chart
@@ -744,7 +745,7 @@ End Sub
 Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Range, colorRange As Range, _
                                 shiftsWorked As Integer, finalAQL As Integer, currentAQL As Integer)
     
-    Set barChart = Me.Shapes.AddChart2(-1, xlBarStacked, Left:=660, Top:=ActiveWindow.VisibleRange.Top + 360, Height:=170, Width:=415)
+    Set barChart = Me.Shapes.AddChart2(-1, xlBarStacked, Left:=Range("J1").Left + 30, Top:=ActiveWindow.VisibleRange.Top + 360, Height:=170, Width:=415)
     barChart.Name = "Bar"
     
     If Xrange Is Nothing Or Yrange.Count = 0 Then
@@ -830,10 +831,16 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
 nextSeries:
     Next j
     
-'Apply formatting to the TOTAL Series
+'Apply formatting to the TOTAL Series, set the total inspection data labels
+    With barChart.Chart.SeriesCollection(i - 1)
+        .Format.Fill.Visible = msoFalse
+        .ApplyDataLabels
+        .DataLabels.Position = xlLabelPositionInsideBase
+        .DataLabels.Format.TextFrame2.TextRange.Font.Size = 8
+    End With
     
     
-    
+'Set the X and Y scales
     barChart.Chart.Axes(xlValue, xlSecondary).MaximumScale = 1
     barChart.Chart.Axes(xlValue, xlPrimary).MaximumScale = finalAQL + 1
     barChart.Chart.Axes(xlValue, xlSecondary).Delete
@@ -844,8 +851,8 @@ nextSeries:
 End Sub
 
 Private Sub CreateTimeSeriesChart(Xrange As Range, Yrange As Range, empRange As Range, colors() As Variant)
-    
-    Set lineChart = Me.Shapes.AddChart2(-1, xlLineMarkers, Left:=660, Top:=ActiveWindow.VisibleRange.Top + 360, Height:=170, Width:=415)
+    '660
+    Set lineChart = Me.Shapes.AddChart2(-1, xlLineMarkers, Left:=Range("J1").Left + 30, Top:=ActiveWindow.VisibleRange.Top + 360, Height:=170, Width:=415)
     lineChart.Name = "Line"
     
     If Xrange Is Nothing Or Yrange Is Nothing Then
