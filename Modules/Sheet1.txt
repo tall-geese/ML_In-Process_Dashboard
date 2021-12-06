@@ -788,7 +788,7 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
     Next Yvalues
     
     
-    Dim config(1) As Variant
+    Dim configurations(1) As Variant
     Dim j As Integer
     j = i
     
@@ -799,17 +799,17 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
         Select Case (j - i)
             Case 0
                 xVal = currentAQL
-                config(0) = "Curr AQL" & vbCrLf & "{" & currentAQL & "}"
-                config(1) = 21759
+                configurations(0) = "Curr AQL" & vbCrLf & "{" & currentAQL & "}"
+                configurations(1) = config.CURR_AQL_COLOR
             Case 1
                 xVal = finalAQL
-                config(0) = "AQL" & vbCrLf & "{" & finalAQL & "}"
-                config(1) = 48639
+                configurations(0) = "AQL" & vbCrLf & "{" & finalAQL & "}"
+                configurations(1) = config.AQL_COLOR
             Case 2
                 If shiftsWorked = 0 Then GoTo nextSeries
                 xVal = shiftsWorked
-                config(0) = "1XSHIFT" & vbCrLf & "{" & shiftsWorked & "}"
-                config(1) = 5505279
+                configurations(0) = "1XSHIFT" & vbCrLf & "{" & shiftsWorked & "}"
+                configurations(1) = config.XSHIFT_COLOR
             Case Else
                 MsgBox "we shouldnt be here"
         
@@ -823,7 +823,7 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
             
             .Format.Line.DashStyle = msoLineDash
             .Format.Line.Weight = 1.5
-            .Format.Line.ForeColor.RGB = config(1)
+            .Format.Line.ForeColor.RGB = configurations(1)
             
             If (j - i) = 0 Or (j - i) = 2 Then
                 .Format.Line.Transparency = 0.5
@@ -831,8 +831,8 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
             
             .Points(2).ApplyDataLabels
             .DataLabels.Position = xlLabelPositionAbove
-            .DataLabels(2).Format.TextFrame2.TextRange.InsertAfter config(0)
-            .Points(2).DataLabel.Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = config(1)
+            .DataLabels(2).Format.TextFrame2.TextRange.InsertAfter configurations(0)
+            .Points(2).DataLabel.Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = configurations(1)
             .Points(2).DataLabel.Format.TextFrame2.TextRange.Font.Size = 9
             .Points(2).DataLabel.Format.TextFrame2.TextRange.Font.Italic = msoTrue
         End With
@@ -862,7 +862,7 @@ nextSeries:
         
             With barChart.Chart.SeriesCollection(i - 1).DataLabels(k)
                 .Format.TextFrame2.TextRange.Font.Bold = True
-                .Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = 5505279  'Set the data label red for 1XSHIFT
+                .Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = config.XSHIFT_COLOR  'Set the data label red for 1XSHIFT
                 If CInt(.Text) < shiftsWorked Then
                     .Format.TextFrame2.TextRange.Font.Size = 18
                 End If
@@ -872,7 +872,7 @@ nextSeries:
                     Or InStr(subCell.Value, "IP_COMPAR") > 0 Or InStr(subCell.Value, "IP_SYLVAC") > 0 Or InStr(subCell.Value, "IP_CMM") > 0 Then
             With barChart.Chart.SeriesCollection(i - 1).DataLabels(k)
                 .Format.TextFrame2.TextRange.Font.Bold = True
-                .Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = 21759  'Set the data label orange for AQL
+                .Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = config.CURR_AQL_COLOR  'Set the data label orange for AQL
                 
                 If CInt(.Text) < currentAQL Then
                     .Format.TextFrame2.TextRange.Font.Size = 18
@@ -909,8 +909,10 @@ Private Sub CreateTimeSeriesChart(Xrange As Range, Yrange As Range, empRange As 
         Exit Sub
     End If
 
+    'TODO: organize the configurations that we're setting
     With lineChart.Chart
         .ChartTitle.Caption = "Production Qty Submitted"
+        .ChartTitle.Format.TextFrame2.TextRange.Font.Size = 12
         .SeriesCollection.NewSeries
         If Xrange.Count = 1 Then
             .SeriesCollection(1).XValues = Xrange
@@ -918,7 +920,19 @@ Private Sub CreateTimeSeriesChart(Xrange As Range, Yrange As Range, empRange As 
             .SeriesCollection(1).XValues = Xrange.Value
         End If
         .SeriesCollection(1).Values = Yrange
+        .SeriesCollection(1).Format.Line.Weight = 0.5
+        .SeriesCollection(1).Format.Line.ForeColor.ObjectThemeColor = msoThemeColorText1
+        .SeriesCollection(1).MarkerStyle = 8
+        .SeriesCollection(1).MarkerSize = 8
 '        .ApplyChartTemplate (ThisWorkbook.path & "\templates\LineSeries.crtx")
+
+        .Axes(xlValue).Delete
+        .Axes(xlValue).MajorGridlines.Delete
+        .ApplyDataLabels HasLeaderLines:=False, ShowSeriesName:=False, ShowCategoryName:=False, ShowValue:=True, ShowPercentage:=False
+        .SeriesCollection(1).DataLabels.Position = xlLabelPositionAbove
+        
+        .Axes(xlCategory).TickLabels.Orientation = 37
+        .Axes(xlCategory).TickLabels.Font.Size = 7
         
         Dim i As Integer
         i = 1
@@ -926,8 +940,9 @@ Private Sub CreateTimeSeriesChart(Xrange As Range, Yrange As Range, empRange As 
         Dim subCell As Range
         For Each subCell In empRange
             For j = 1 To UBound(colors)
-                If subCell.Value = colors(j, 1) Then
-                    .SeriesCollection(1).Points(i).Format.Fill.ForeColor.RGB = colors(j, 3)
+                If subCell.Value = colors(j, 1) Or subCell.Value = Format(colors(j, 1), "0000") Then
+                    .SeriesCollection(1).Points(i).MarkerForegroundColor = colors(j, 3)
+                    .SeriesCollection(1).Points(i).MarkerBackgroundColor = colors(j, 3)
                     GoTo contEmp
                 End If
             Next j
