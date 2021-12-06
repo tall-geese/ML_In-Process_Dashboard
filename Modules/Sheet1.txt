@@ -219,19 +219,20 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
     
         'If user selected information about the active job in the Viewport
     If Not (Application.Intersect(Range("K2:K8"), Target) Is Nothing) Then
-        Range("J2:J8").Value = ""
-        Target.Offset(0, -1).Value = ">"
-        Range("K2:N8").Interior.ColorIndex = 0
+            'Reset Arrows
+        Range("J2:J8").Font.color = RGB(208, 206, 206)
+        Target.Offset(0, -1).Font.color = RGB(0, 0, 0)
+            'Reset Cell Color
+        Application.Union(Range("K2:N2"), Range("K4:N4"), Range("K6:N6"), Range("K8:N8")).Interior.color = RGB(205, 242, 255)
         Range(Target.Address & ":N" & Target.row).Interior.color = RGB(101, 215, 255)
         
         Select Case Target.Address
-            Case "$K$2"  'Setup
-            
-            Case "$K$4" 'Last Insepction
-                Call CreateInspBarChart
+            Case "$K$2"  'Setup Info
+                Call CreateSetupDoughnut
+            Case "$K$4" 'Acceptable Inspections
                 Call CreateInspDoughnut
-            
-            Case "$K$6"  'Parts Completed /Required
+                Call CreateInspBarChart
+            Case "$K$6"  'Parts Submitted
                 Call CreateLaborQtyDoughnut
                 Call CreateLaborQtyTimeSeries
             Case "$K$8"  'Hours Remaining
@@ -286,12 +287,12 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
         
         Select Case infoRange.Address
             Case "$K$2"  'Setup Info
-            
-            Case "$K$4"  'Last Inspection Info
+                Call CreateSetupDoughnut(jobCell:=jobCell)
+            Case "$K$4"  'Acceptable Inspection Info
                 Call CreateInspBarChart(jobCell:=jobCell)
                 Call CreateInspDoughnut(jobCell:=jobCell)
             
-            Case "$K$6"  'Parts Completed / Required
+            Case "$K$6"  'Parts Submitted
                 Call CreateLaborQtyDoughnut(jobCell:=jobCell)
                 Call CreateLaborQtyTimeSeries(jobCell:=jobCell)
             
@@ -327,20 +328,24 @@ Private Sub updatedJobInfo(rowNumber As Integer, jobCell As Range)
     Dim indRange As Range
     Set indRange = Sheets("ShopLoad").Range("A" & rowNumber)
     
+        'TODO: soon these will all have to be relative references to a job header cell that we will
+        'establish at the top
+    
     Range("K1").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("JobNum") - indRange.column).Value  'Job# Header
-    Range("K3").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("FA Type") - indRange.column).Value
-    Range("M3").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Set%") - indRange.column).Value & "%"
+    Range("K1:N1").Interior.color = config.GetCustomerColor(indRange.Offset(0, Sheets("ShopLoad").GetCol("Customer") - indRange.column).Value)  'JobHeader color
+    Range("M3").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("FA Type") - indRange.column).Value  'Setup Type
+    Range("M5").Value = Format(indRange.Offset(0, Sheets("ShopLoad").GetCol("AQL") - indRange.column).Value, "0.00") 'Customer AQL
     
-    If Range("M3").Value = "100%" Then
-        Range("N3").Value = "þ"
-    Else
-        Range("N3").Value = "o"
-    End If
+    Dim val1 As String
+    Dim val2 As String
+    val1 = indRange.Offset(0, Sheets("ShopLoad").GetCol("Qty Complete") - indRange.column).Value
+    val2 = indRange.Offset(0, Sheets("ShopLoad").GetCol("Run Qty") - indRange.column).Value
     
-    Range("N5").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("AQL") - indRange.column).Value
-    Range("K7").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Qty Complete") - indRange.column).Value
-    Range("M7").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Run Qty") - indRange.column).Value
-    Range("N8").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Est Rem Hrs") - indRange.column).Value
+    Range("L7").Value = val1 & " / " & val2
+    
+'    Range("L7").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Qty Complete") - indRange.column).Value _
+'                        & " / " & indRange.Offset(0, Sheets("ShopLoad").GetCol("Run Qty") - indRange.column).Value  'QtyComplete / Run Qty
+    Range("M9").Value = indRange.Offset(0, Sheets("ShopLoad").GetCol("Est Rem Hrs") - indRange.column).Value   'Rem Hrs
     
     
     Dim colors() As Variant
@@ -353,23 +358,24 @@ Private Sub updatedJobInfo(rowNumber As Integer, jobCell As Range)
     On Error GoTo NoInfoErr
     Set valRange = Sheets("ProdInfo").GetProductionLaborData(jobNum:=jobCell.Value, opNum:=opNum, colors:=colors)
     Set valRange = valRange.Offset(0, 1)
-    With Range("N7")
+    With Range("M7")
         .SparklineGroups.Clear
         .SparklineGroups.Add Type:=xlSparkLine, SourceData:="ProdInfo!" & valRange.Address
         '.SparklineGroups.Item(1).SeriesColor.color = 9592887
     End With
-    'GetProductionLaborData(jobNum:=jobCell.Value, opNum:=opNum, colors:=colors)
+    
     
     Exit Sub
     
 NoInfoErr:
         'No Production information, still set a chart of empty values anyways
     If Err.Number = vbObjectError + 1000 Then
-        Range("N7").SparklineGroups.Clear
+        Range("M7").SparklineGroups.Clear
         Exit Sub
     Else
         On Error GoTo 0   'TODO: still might want to clear up the charts in this situation
-        Err.Raise Number:=vbObjectError + 1100, Description:="Problem with fetching the Data for this Job."
+        MsgBox Err.Description
+'        Err.Raise Number:=vbObjectError + 1100, Description:="Problem with fetching the Data for this Job."
     End If
 
 End Sub
@@ -382,7 +388,7 @@ Private Function GetJobInfoSelection() As Range
     Dim subCell As Range
     
     For Each subCell In info
-        If subCell.Interior.color = RGB(101, 215, 255) And subCell.Offset(0, -1).Value = ">" Then
+        If subCell.Interior.color = RGB(101, 215, 255) And subCell.Offset(0, -1).Font.ColorIndex = 1 Then
             Set GetJobInfoSelection = subCell
         End If
     Next subCell
@@ -407,6 +413,177 @@ End Function
 
                                         '-----------------   Doughnuts   ----------------------
 
+
+Private Sub CreateSetupDoughnut(Optional jobCell As Range)
+    If jobCell Is Nothing Then
+        Set jobCell = GetActiveJob()
+        If jobCell Is Nothing Then Exit Sub
+    End If
+    
+
+    Dim indCell As Range
+    Dim lastActiveCell As Range
+    Set indCell = Sheets("ShopLoad").GetJobInd(jobCell.Value)
+    If indCell Is Nothing Then Err.Raise Number:=vbObjectError + 1100, Description:="Can't find this job on the Shop Load"
+    Set lastActiveCell = activeCell
+        
+    jobCell.Activate   'Charts are created using ranges around the active cell, need to select something that wont cause errors then come back to the main cell
+
+    Dim colors(1 To 2, 1 To 3) As Variant
+    Dim Xvals(1 To 1, 1 To 2) As Variant
+    Dim Yvals(1 To 1, 1 To 2) As Variant
+    
+    colors(1, 3) = config.COLOR_SETUP_1
+    colors(2, 3) = config.COLOR_SETUP_2
+    
+    Xvals(1, 1) = "%Incomplete"
+    Xvals(1, 2) = "%Complete"
+    
+    Yvals(1, 2) = CDbl(indCell.Offset(0, Sheets("ShopLoad").GetCol("Set%") - indCell.column).Value) / 100
+    Yvals(1, 1) = 1 - Yvals(1, 2)
+    
+    
+    Call DestroyPieCharts(destroyLine:=True)
+    Call DestroyBottomCharts
+    Call CreateDoughnutChart(Xrange:=Xvals, Yrange:=Yvals, colors:=colors)
+
+    lastActiveCell.Activate
+    
+End Sub
+
+Private Sub CreateInspDoughnut(Optional jobCell As Range)
+    If jobCell Is Nothing Then
+        Set jobCell = GetActiveJob()
+        If jobCell Is Nothing Then Exit Sub
+    End If
+    
+    Dim lastActiveCell As Range
+    Dim Xvals() As Variant
+    Dim Yvals() As Variant
+    Dim Xrange As Range
+    Dim Yrange As Range
+    Dim colors() As Variant
+    Set lastActiveCell = activeCell
+       
+    jobCell.Activate
+       
+        'Will raise a specific error that we can capture if there was no production qty
+            'This first call is just to set the colors
+    Set Yrange = Sheets("MeasurementInfo").GetEmpInspDataSUM(jobNum:=jobCell.Value, empRange:=Xrange, colors:=colors)
+    If (Not colors) = -1 Then GoTo 10  'Theres nothing to set, let the chart routines setup the default NO DATA
+
+    'Check if the reutrned range is nothing
+    Dim fmtColors() As Variant
+    ReDim Preserve fmtColors(1 To UBound(colors, 2), 1 To 3)
+    Dim i As Integer
+    For i = 1 To UBound(colors, 2)
+        fmtColors(i, 3) = colors(1, i)
+    Next i
+
+        'If range count is 1, wont return a 2-D array to the variant
+    If Xrange.Count = 1 And Yrange.Count = 1 Then
+        ReDim Preserve Xvals(1 To 1, 1 To 1)
+        ReDim Preserve Yvals(1 To 1, 1 To 1)
+        Xvals(1, 1) = Xrange.Cells(1).Value
+        If IsNumeric(Mid(Xvals(1, 1), 1, 1)) Then Xvals(1, 1) = Format(Xvals(1, 1), "0000")
+        Yvals(1, 1) = Yrange.Cells(1).Value
+    Else
+        Xvals = Xrange
+        Yvals = Yrange
+        
+        Dim j As Integer
+        For j = 1 To UBound(Xvals, 2)
+            If IsNumeric(Mid(Xvals(1, j), 1, 1)) Then
+                Xvals(1, j) = Format(Xvals(1, j), "0000")
+            End If
+        Next j
+    End If
+
+    On Error GoTo 0
+    
+'    Xvals = Xrange
+'    Yvals = Yrange
+    
+10
+    Call DestroyPieCharts
+    Call CreateDoughnutChart(Xrange:=Xvals, Yrange:=Yvals, colors:=fmtColors, dispValues:=True)
+    
+    lastActiveCell.Activate
+    
+    'TODO erorr handle here
+
+End Sub
+
+Private Sub CreateLaborQtyDoughnut(Optional jobCell As Range)
+    If jobCell Is Nothing Then
+        Set jobCell = GetActiveJob()
+        If jobCell Is Nothing Then Exit Sub
+    End If
+    
+    Dim indCell As Range
+    Dim opNum As String
+    Dim colors() As Variant
+    Dim lastActiveCell As Range
+    Dim Xvals() As Variant
+    Dim Yvals() As Variant
+    Set indCell = Sheets("ShopLoad").GetJobInd(jobCell.Value)
+    opNum = indCell.Offset(0, Sheets("ShopLoad").GetCol("Op Seq") - indCell.column).Value
+    
+    Set lastActiveCell = activeCell
+       
+    jobCell.Activate
+       
+    Dim Xrange As Range
+    Dim Yrange As Range
+    
+    On Error GoTo NoInfoErr
+        'Will raise a specific error that we can capture if there was no production qty
+            'This first call is just to set the colors
+    Set Xrange = Sheets("ProdInfo").GetProductionLaborData(jobNum:=jobCell.Value, opNum:=opNum, colors:=colors)
+    Set Xrange = Sheets("ProdInfo").GetProductionLaborDataSUM(jobNum:=jobCell.Value)
+    
+    Set Yrange = Xrange.Offset(0, 1)
+    
+        'If range count is 1, wont return a 2-D array to the variant
+    If Xrange.Count = 1 And Yrange.Count = 1 Then
+        ReDim Preserve Xvals(1 To 1, 1 To 1)
+        ReDim Preserve Yvals(1 To 1, 1 To 1)
+        Xvals(1, 1) = Xrange.Cells(1).Value
+        If IsNumeric(Mid(Xvals(1, 1), 1, 1)) Then Xvals(1, 1) = Format(Xvals(1, 1), "0000")
+        Yvals(1, 1) = Yrange.Cells(1).Value
+    Else
+        Xvals = Xrange
+        Yvals = Yrange
+        
+        Dim i As Integer
+        For i = 1 To UBound(Xvals, 1)
+            If IsNumeric(Mid(Xvals(i, 1), 1, 1)) Then
+                Xvals(i, 1) = Format(Xvals(i, 1), "0000")
+            End If
+        Next i
+    End If
+10
+
+    On Error GoTo 0
+    Call DestroyPieCharts
+    Call DestroyBottomCharts
+    Call CreateDoughnutChart(Xrange:=Xvals, Yrange:=Yvals, colors:=colors, dispValues:=True)
+    
+    lastActiveCell.Activate
+    
+    Exit Sub
+    
+NoInfoErr:
+        'No Production information, still set a chart of empty values anyways
+    If Err.Number = vbObjectError + 1000 Then
+        GoTo 10
+    Else
+        On Error GoTo 0
+        Err.Raise Number:=vbObjectError + 1100, Description:="Problem with fetching the Data for this Job."
+    End If
+
+End Sub
+
 Private Sub CreatePrdHoursDoughnut(Optional jobCell As Range)
     If jobCell Is Nothing Then
         Set jobCell = GetActiveJob()
@@ -416,6 +593,9 @@ Private Sub CreatePrdHoursDoughnut(Optional jobCell As Range)
 
     Dim indCell As Range
     Dim lastActiveCell As Range
+    Dim Xvals() As Variant
+    Dim Yvals() As Variant
+    
     Set indCell = Sheets("ShopLoad").GetJobInd(jobCell.Value)
     If indCell Is Nothing Then Err.Raise Number:=vbObjectError + 1100, Description:="Can't find this job on the Shop Load"
     Set lastActiveCell = activeCell
@@ -434,100 +614,21 @@ Private Sub CreatePrdHoursDoughnut(Optional jobCell As Range)
     
     Set Xrange = Sheets("ShopLoad").Range("$I$1:$J$1")
     
+    
+    Xvals = Xrange
+    Yvals = Yrange
+    
+    
     Call DestroyPieCharts(destroyLine:=True)
-    Call CreateDoughnutChart(Xrange:=Xrange, Yrange:=Yrange, colors:=colors)
+    Call DestroyBottomCharts
+    Call CreateDoughnutChart(Xrange:=Xvals, Yrange:=Yvals, colors:=colors, dispValues:=True)
 
     lastActiveCell.Activate
     
 End Sub
 
-Private Sub CreateLaborQtyDoughnut(Optional jobCell As Range)
-    If jobCell Is Nothing Then
-        Set jobCell = GetActiveJob()
-        If jobCell Is Nothing Then Exit Sub
-    End If
-    
-    Dim indCell As Range
-    Dim opNum As String
-    Dim colors() As Variant
-    Dim lastActiveCell As Range
-    Set indCell = Sheets("ShopLoad").GetJobInd(jobCell.Value)
-    opNum = indCell.Offset(0, Sheets("ShopLoad").GetCol("Op Seq") - indCell.column).Value
-    
-    Set lastActiveCell = activeCell
-       
-    jobCell.Activate
-       
-    Dim Xrange As Range
-    Dim Yrange As Range
-    
-    On Error GoTo NoInfoErr
-        'Will raise a specific error that we can capture if there was no production qty
-            'This first call is just to set the colors
-    Set Xrange = Sheets("ProdInfo").GetProductionLaborData(jobNum:=jobCell.Value, opNum:=opNum, colors:=colors)
-    Set Xrange = Sheets("ProdInfo").GetProductionLaborDataSUM(jobNum:=jobCell.Value)
-    
-    Set Yrange = Xrange.Offset(0, 1)
-10
-    On Error GoTo 0
-    Call DestroyPieCharts
-    Call CreateDoughnutChart(Xrange:=Xrange, Yrange:=Yrange, colors:=colors)
-    
-    lastActiveCell.Activate
-    
-    Exit Sub
-    
-NoInfoErr:
-        'No Production information, still set a chart of empty values anyways
-    If Err.Number = vbObjectError + 1000 Then
-        GoTo 10
-    Else
-        On Error GoTo 0
-        Err.Raise Number:=vbObjectError + 1100, Description:="Problem with fetching the Data for this Job."
-    End If
-
-End Sub
 
 
-Private Sub CreateInspDoughnut(Optional jobCell As Range)
-    If jobCell Is Nothing Then
-        Set jobCell = GetActiveJob()
-        If jobCell Is Nothing Then Exit Sub
-    End If
-    
-    Dim lastActiveCell As Range
-    Set lastActiveCell = activeCell
-       
-    jobCell.Activate
-       
-    Dim Xrange As Range
-    Dim Yrange As Range
-    Dim colors() As Variant
-    
-        'Will raise a specific error that we can capture if there was no production qty
-            'This first call is just to set the colors
-    Set Yrange = Sheets("MeasurementInfo").GetEmpInspDataSUM(jobNum:=jobCell.Value, empRange:=Xrange, colors:=colors)
-    If (Not colors) = -1 Then GoTo 10  'Theres nothing to set, let the chart routines setup the default NO DATA
-
-    'Check if the reutrned range is nothing
-    Dim fmtColors() As Variant
-    ReDim Preserve fmtColors(1 To UBound(colors, 2), 1 To 3)
-    Dim i As Integer
-    For i = 1 To UBound(colors, 2)
-        fmtColors(i, 3) = colors(1, i)
-    Next i
-
-
-    On Error GoTo 0
-10
-    Call DestroyPieCharts
-    Call CreateDoughnutChart(Xrange:=Xrange, Yrange:=Yrange, colors:=fmtColors)
-    
-    lastActiveCell.Activate
-    
-    'TODO erorr handle here
-
-End Sub
 
 
                                                 '-----------------   Bar/Lines   ----------------------
@@ -675,13 +776,13 @@ End Sub
                                         '*********   MAIN Chart Creation Routines   *****************
                                         '************************************************************
 
-Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Variant)
+Public Sub CreateDoughnutChart(Xrange() As Variant, Yrange() As Variant, colors() As Variant, Optional dispValues As Boolean)
     
-    Set pieChart = Me.Shapes.AddChart2(-1, xlDoughnutExploded, Left:=Range("J1").Left + 200, Top:=ActiveWindow.VisibleRange.Top + 5, Height:=160, Width:=220)
+    Set pieChart = Me.Shapes.AddChart2(-1, xlDoughnutExploded, Left:=Range("J1").Left + 220, Top:=ActiveWindow.VisibleRange.Top + 5, Height:=160, Width:=220)
     pieChart.Name = "Doughnut"
     
     With pieChart.Chart
-        If Xrange Is Nothing Or Yrange Is Nothing Then
+        If (Not Xrange) = -1 Or (Not Yrange) = -1 Then
             .ChartTitle.Caption = "NO DATA"
             .Legend.Delete
             Exit Sub
@@ -697,13 +798,11 @@ Public Sub CreateDoughnutChart(Xrange As Range, Yrange As Range, colors() As Var
         .Legend.Left = 200
     End With
 
-    
-    
         'New/Update Parameters
     With pieChart.Chart
         .SeriesCollection(1).XValues = Xrange
-        .SeriesCollection(1).Values = Yrange
-        .ApplyDataLabels HasLeaderLines:=False, ShowSeriesName:=False, ShowCategoryName:=False, ShowValue:=True, ShowPercentage:=True
+        .SeriesCollection(1).values = Yrange
+        .ApplyDataLabels HasLeaderLines:=False, ShowSeriesName:=False, ShowCategoryName:=False, ShowValue:=dispValues, ShowPercentage:=True
         .SeriesCollection(1).Explosion = 4
         .SeriesCollection(1).DataLabels.Select
         Selection.Format.Fill.Visible = 0
@@ -745,14 +844,14 @@ End Sub
 Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Range, colorRange As Range, _
                                 shiftsWorked As Integer, finalAQL As Integer, currentAQL As Integer)
     
-    Set barChart = Me.Shapes.AddChart2(-1, xlBarStacked, Left:=Range("J1").Left + 30, Top:=ActiveWindow.VisibleRange.Top + 360, Height:=170, Width:=415)
+    Set barChart = Me.Shapes.AddChart2(-1, xlBarStacked, Left:=Range("J1").Left + 15, Top:=ActiveWindow.VisibleRange.Top + 360, Height:=170, Width:=415)
     barChart.Name = "Bar"
     
     If Xrange Is Nothing Or Yrange.Count = 0 Then
         Dim coll As Excel.Series
         For Each coll In barChart.Chart.SeriesCollection
             coll.XValues = vbEmpty
-            coll.Values = vbEmpty
+            coll.values = vbEmpty
         Next coll
         
         barChart.Chart.ChartTitle.Caption = "NO DATA"
@@ -771,7 +870,7 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
         barChart.Chart.SeriesCollection.NewSeries
         With barChart.Chart.SeriesCollection(i)
             .Name = empRange.Cells(i)
-            .Values = Yvalues.Value
+            .values = Yvalues.Value
             .Format.Fill.ForeColor.RGB = colorRange.Cells(i).Value  'erorred here last
             
             If i = 1 Then
@@ -818,7 +917,7 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
         barChart.Chart.SeriesCollection.NewSeries
         With barChart.Chart.SeriesCollection(j)
             .ChartType = xlXYScatterLinesNoMarkers
-            .Values = "={0,1}"
+            .values = "={0,1}"
             .XValues = "={" & xVal & "," & xVal & "}"
             
             .Format.Line.DashStyle = msoLineDash
@@ -897,13 +996,12 @@ nextSeries:
 End Sub
 
 Private Sub CreateTimeSeriesChart(Xrange As Range, Yrange As Range, empRange As Range, colors() As Variant)
-    '660
-    Set lineChart = Me.Shapes.AddChart2(-1, xlLineMarkers, Left:=Range("J1").Left + 30, Top:=ActiveWindow.VisibleRange.Top + 360, Height:=170, Width:=415)
+    Set lineChart = Me.Shapes.AddChart2(-1, xlLineMarkers, Left:=Range("J1").Left + 15, Top:=ActiveWindow.VisibleRange.Top + 360, Height:=170, Width:=415)
     lineChart.Name = "Line"
     
     If Xrange Is Nothing Or Yrange Is Nothing Then
         lineChart.Chart.SeriesCollection(1).XValues = vbEmpty
-        lineChart.Chart.SeriesCollection(1).Values = vbEmpty
+        lineChart.Chart.SeriesCollection(1).values = vbEmpty
         lineChart.Chart.ChartTitle.Caption = "NO DATA"
 '        lineChart.Chart.ApplyChartTemplate (ThisWorkbook.path & "\templates\LineSeries.crtx")
         Exit Sub
@@ -919,7 +1017,7 @@ Private Sub CreateTimeSeriesChart(Xrange As Range, Yrange As Range, empRange As 
         Else
             .SeriesCollection(1).XValues = Xrange.Value
         End If
-        .SeriesCollection(1).Values = Yrange
+        .SeriesCollection(1).values = Yrange
         .SeriesCollection(1).Format.Line.Weight = 0.5
         .SeriesCollection(1).Format.Line.ForeColor.ObjectThemeColor = msoThemeColorText1
         .SeriesCollection(1).MarkerStyle = 8
@@ -1077,10 +1175,6 @@ Private Function GetOuterLblTop(lblLeft As Double, lblTop As Double, lblWidth As
     End If
     
 End Function
-
-
-
-
 
 
 

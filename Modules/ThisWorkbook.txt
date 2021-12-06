@@ -39,18 +39,32 @@ Private Sub DisableEvents()
 End Sub
 
 Private Sub printColor()
-    Debug.Print (RGB(128, 128, 128) & " " & vbCrLf)
-'    Debug.Print (RGB(255, 0, 84) & " " & vbCrLf)
+    Debug.Print (RGB(2, 48, 71) & " " & vbCrLf)
+'    Debug.Print (RGB(251, 133, 0) & " " & vbCrLf)
 '    Debug.Print (RGB(255, 189, 0) & " " & vbCrLf)
 
 End Sub
 
-'Private Sub unionTest()
-'    Dim arr(1 To 8, 1 To 3) As Variant
-'    arr(1, 3) = "this"
-'    arr(2, 3) = "is"
-'    arr(3, 3) = "Stupid"
-'End Sub
+Sub test()
+    MsgBox Selection.Top
+
+    'Routine Arrow
+        'Top 201
+        'Left  734.25 (right arrow)
+        'Left  720.75 (left arrow)
+        
+    'Features Arrow
+        'Top  241.5
+        'Left  639  (right arrow)
+        'Left  679.5 (left arrow)
+
+    'Features Arrow 2
+        'Top  315
+        'Left  639  (right arrow)
+        'Left  679.5 (left arrow)
+
+
+End Sub
 
 
 

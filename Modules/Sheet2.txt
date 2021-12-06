@@ -92,7 +92,9 @@ Public Function GetProductionLaborDataSUM(jobNum As String) As Range  '-> XValue
         Err.Raise Number:=vbObjectError + 1100, Description:="No job after it should have been loaded"
     End If
 
-    If jobInd.Offset(1, 2).Value <> "" And jobInd.Offset(2, 2).Value <> "" Then
+    If jobInd.Offset(1, 2).Value <> "" And (jobInd.Offset(2, 2).Value = "" Or jobInd.Offset(2, 2).Value = "Emp") Then
+        Set GetProductionLaborDataSUM = jobInd.Offset(1, 2)
+    ElseIf jobInd.Offset(1, 2).Value <> "" And jobInd.Offset(2, 2).Value <> "" Then
         Dim connectedSet As Range
         Set connectedSet = Range(jobInd.Offset(1, 2), jobInd.Offset(1, 2).End(xlDown)).Find("Emp", MatchCase:=False)
         
@@ -101,13 +103,27 @@ Public Function GetProductionLaborDataSUM(jobNum As String) As Range  '-> XValue
         Else
             Set GetProductionLaborDataSUM = Range(jobInd.Offset(1, 2), connectedSet.Offset(-1, 0))
         End If
-        
-    ElseIf jobInd.Offset(1, 2).Value <> "" And (jobInd.Offset(2, 2).Value = "" Or jobInd.Offset(2, 2).Value = "Emp") Then
-        Set GetProductionLaborDataSUM = jobInd.Offset(1, 2)
     ElseIf jobInd.Offset(1, 2).Value = "" Then
         'TODO: Err.Raise
     End If
     
+    
+    
+'    If jobInd.Offset(1, 2).Value <> "" And jobInd.Offset(2, 2).Value <> "" Then
+'        Dim connectedSet As Range
+'        Set connectedSet = Range(jobInd.Offset(1, 2), jobInd.Offset(1, 2).End(xlDown)).Find("Emp", MatchCase:=False)
+'
+'        If connectedSet Is Nothing Then
+'            Set GetProductionLaborDataSUM = Range(jobInd.Offset(1, 2), jobInd.Offset(1, 2).End(xlDown))
+'        Else
+'            Set GetProductionLaborDataSUM = Range(jobInd.Offset(1, 2), connectedSet.Offset(-1, 0))
+'        End If
+'
+'    ElseIf jobInd.Offset(1, 2).Value <> "" And (jobInd.Offset(2, 2).Value = "" Or jobInd.Offset(2, 2).Value = "Emp") Then
+'        Set GetProductionLaborDataSUM = jobInd.Offset(1, 2)
+'    ElseIf jobInd.Offset(1, 2).Value = "" Then
+'        'TODO: Err.Raise
+'    End If
 
 End Function
 
