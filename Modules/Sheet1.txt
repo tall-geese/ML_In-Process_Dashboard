@@ -15,17 +15,17 @@ Dim lineChart As Excel.shape
 Dim barChart As Excel.shape
 Dim tempAddy As String
 
-'*************************************************************
-'*************************************************************
-'*                  ShopStatus
-'*
-'*************************************************************
-'*************************************************************
+                                                    '*************************************************************
+                                                    '*************************************************************
+                                                    '*                  ShopStatus
+                                                    '*
+                                                    '*************************************************************
+                                                    '*************************************************************
 
 
-'************************************************************
-'*************   Cleanup/Fill Routines   ********************
-'************************************************************
+                                                    '************************************************************
+                                                    '*************   Cleanup/Fill Routines   ********************
+                                                    '************************************************************
 
 Public Sub Cleanup()
     Unprotect PASSWORD:=config.PASSWORD
@@ -60,27 +60,30 @@ Public Sub DeleteImages()
     Set lineChart = Nothing
 End Sub
 
-Public Sub DestroyPieCharts(Optional destroyLine As Boolean)
+Private Sub DestroyCharts(Optional destroyPie As Boolean, Optional destroyLine As Boolean, Optional destroyBar As Boolean)
     On Error Resume Next
-    Me.Shapes("Doughnut").Delete
+    If destroyPie = True Then
+        Me.Shapes("Doughnut").Delete
+        Set pieChart = Nothing
+    End If
     If destroyLine = True Then
         Me.Shapes("Line").Delete
+        Set lineChart = Nothing
+    End If
+    If destroyBar = True Then
+        Me.Shapes("Bar").Delete
+        Set barChart = Nothing
     End If
     
-'    Dim im As Excel.shape
-'    For Each im In Me.Shapes
-'        If im.Name = "Doughnut" Then im.Delete  'TODO: placeholder, should be safe since the pie chart is what gets created first
-'    Next im
-    Set pieChart = Nothing
 End Sub
 
-Public Sub DestroyBottomCharts()
-    On Error Resume Next
-    Me.Shapes("Line").Delete
-    Me.Shapes("Bar").Delete
-    Set lineChart = Nothing
-    Set barChart = Nothing
-End Sub
+' Public Sub DestroyBottomCharts()
+    ' On Error Resume Next
+    ' Me.Shapes("Line").Delete
+    ' Me.Shapes("Bar").Delete
+    ' Set lineChart = Nothing
+    ' Set barChart = Nothing
+' End Sub
 
     'Creates the Header Cell Row the Production Machines
 Public Sub AddCell(cellName As String)
@@ -188,9 +191,9 @@ End Sub
 
 
 
-                                    '************************************************************
-                                    '****************   Event Callbacks   ***********************
-                                    '************************************************************
+                                        '************************************************************
+                                        '****************   Event Callbacks   ***********************
+                                        '************************************************************
 
 
 
@@ -217,7 +220,7 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
     Application.Calculation = xlCalculationManual
     Me.Unprotect config.PASSWORD
     
-        'If user selected information about the active job in the Viewport
+'Job Viewport Selected
     If Not (Application.Intersect(Range("K2:K8"), Target) Is Nothing) Then
             'Reset Arrows
         Range("J2:J8").Font.color = RGB(208, 206, 206)
@@ -241,7 +244,7 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
                 'Doesn't make sense
         End Select
         
-    
+'Machine Rows Selected
     Else  'If user selected a new job Row, these are the only other unprotected cells
         Dim subCell As Range
         Dim jobRange As Range
@@ -260,11 +263,6 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
                 Range("B" & subCell.row & ":" & "H" & subCell.row).Interior.color = RGB(101, 215, 255)
                 validSelection = True
             End If
-            
-'            If Not (Application.Intersect(subCell, Target.EntireRow) Is Nothing) And subCell.Interior.color <> RGB(128, 128, 128) Then
-'                Range("B" & subCell.Row & ":" & "H" & subCell.Row).Interior.color = RGB(101, 215, 255)
-'                validSelection = True
-'            End If
         Next subCell
         
         If validSelection = False Then GoTo 10  'If they selected a header or something then leave after unsetting the previous selection
@@ -314,14 +312,14 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
 selectionErr:
     If Err.Number <> vbObjectError + 1000 Then
         Call DeleteImages
-        MsgBox Err.Number & vbCrLf & Err.Description
+        'MsgBox Err.Number & vbCrLf & Err.Description
     End If
     GoTo 10
 End Sub
 
-                                    '************************************************************
-                                    '****************   JobInfo Viewport   **********************
-                                    '************************************************************
+                                        '************************************************************
+                                        '****************   JobInfo Viewport   **********************
+                                        '************************************************************
 
 'Called by _SelectionChange
 Private Sub updatedJobInfo(rowNumber As Integer, jobCell As Range)
@@ -415,6 +413,8 @@ End Function
 
 
 Private Sub CreateSetupDoughnut(Optional jobCell As Range)
+    On Error GoTo SetupDoughnutErr
+
     If jobCell Is Nothing Then
         Set jobCell = GetActiveJob()
         If jobCell Is Nothing Then Exit Sub
@@ -424,7 +424,7 @@ Private Sub CreateSetupDoughnut(Optional jobCell As Range)
     Dim indCell As Range
     Dim lastActiveCell As Range
     Set indCell = Sheets("ShopLoad").GetJobInd(jobCell.Value)
-    If indCell Is Nothing Then Err.Raise Number:=vbObjectError + 1100, Description:="Can't find this job on the Shop Load"
+    If indCell Is Nothing Then Err.Raise Number:=vbObjectError + 4200, Description:="Can't find this job on the Shop Load" & vbCrLf & "Sub. ShopStatus.CreateSetupDoughnut()"
     Set lastActiveCell = activeCell
         
     jobCell.Activate   'Charts are created using ranges around the active cell, need to select something that wont cause errors then come back to the main cell
@@ -443,15 +443,25 @@ Private Sub CreateSetupDoughnut(Optional jobCell As Range)
     Yvals(1, 1) = 1 - Yvals(1, 2)
     
     
-    Call DestroyPieCharts(destroyLine:=True)
-    Call DestroyBottomCharts
+    Call DestroyCharts(destroyPie:=True, destroyLine:=True, destroyBar:=True)
     Call CreateDoughnutChart(Xrange:=Xvals, Yrange:=Yvals, colors:=colors)
 
     lastActiveCell.Activate
+
+    Exit Sub
     
+SetupDoughnutErr:
+    If Err.Number = vbObjectError + 4200 Then
+        Err.Raise Number:=Err.Number, Description:=Err.Description
+    Else
+        Err.Raise Number:=vbObjectError + 4200, Description:="Error Occurred at " & vbCrLf & "Sub. ShopStatus.CreateSetupDoughnut()"
+    End If
 End Sub
 
 Private Sub CreateInspDoughnut(Optional jobCell As Range)
+
+    On Error GoTo InspDoughnutErr
+
     If jobCell Is Nothing Then
         Set jobCell = GetActiveJob()
         If jobCell Is Nothing Then Exit Sub
@@ -470,7 +480,6 @@ Private Sub CreateInspDoughnut(Optional jobCell As Range)
         'Will raise a specific error that we can capture if there was no production qty
             'This first call is just to set the colors
     Set Yrange = Sheets("MeasurementInfo").GetEmpInspDataSUM(jobNum:=jobCell.Value, empRange:=Xrange, colors:=colors)
-    If (Not colors) = -1 Then GoTo 10  'Theres nothing to set, let the chart routines setup the default NO DATA
 
     'Check if the reutrned range is nothing
     Dim fmtColors() As Variant
@@ -480,6 +489,7 @@ Private Sub CreateInspDoughnut(Optional jobCell As Range)
         fmtColors(i, 3) = colors(1, i)
     Next i
 
+    'Make 2-D variant array from cell data
         'If range count is 1, wont return a 2-D array to the variant
     If Xrange.Count = 1 And Yrange.Count = 1 Then
         ReDim Preserve Xvals(1 To 1, 1 To 1)
@@ -499,22 +509,30 @@ Private Sub CreateInspDoughnut(Optional jobCell As Range)
         Next j
     End If
 
-    On Error GoTo 0
     
-'    Xvals = Xrange
-'    Yvals = Yrange
-    
-10
-    Call DestroyPieCharts
+NoData:
+
+    Call DestroyCharts(destroyPie:=True, destroyLine:=True, destroyBar:=True)
     Call CreateDoughnutChart(Xrange:=Xvals, Yrange:=Yvals, colors:=fmtColors, dispValues:=True)
     
     lastActiveCell.Activate
-    
-    'TODO erorr handle here
+    Exit Sub
+
+InspDoughnutErr:
+    If Err.Number = vbObjectError + 1100 Then
+        Resume NoData
+    ElseIf Err.Number = vbObjectError + 5400 Then
+        Msgbox "Error Occured at" & vbcrlf & "ShopStatus.CreateInspDoughnut()" & vbcrlf "--> MeasurementInfo.GetEmpInspDataSUM()" & vbcrlf & Err.Number & Err.Description
+    Else
+        MsgBox "Error Occured at" & vbCrLf & "ShopStatus.CreateInspDoughnut()" & vbCrLf & Err.Number & Err.Description
+    End If
 
 End Sub
 
 Private Sub CreateLaborQtyDoughnut(Optional jobCell As Range)
+
+    On Error GoTo LaborDoughtnut
+    
     If jobCell Is Nothing Then
         Set jobCell = GetActiveJob()
         If jobCell Is Nothing Then Exit Sub
@@ -536,7 +554,6 @@ Private Sub CreateLaborQtyDoughnut(Optional jobCell As Range)
     Dim Xrange As Range
     Dim Yrange As Range
     
-    On Error GoTo NoInfoErr
         'Will raise a specific error that we can capture if there was no production qty
             'This first call is just to set the colors
     Set Xrange = Sheets("ProdInfo").GetProductionLaborData(jobNum:=jobCell.Value, opNum:=opNum, colors:=colors)
@@ -562,29 +579,32 @@ Private Sub CreateLaborQtyDoughnut(Optional jobCell As Range)
             End If
         Next i
     End If
-10
+    
+NoData:
 
-    On Error GoTo 0
-    Call DestroyPieCharts
-    Call DestroyBottomCharts
+    Call DestroyCharts(destroyBar:=True, destroyLine:=True, destroyBar:=True)
     Call CreateDoughnutChart(Xrange:=Xvals, Yrange:=Yvals, colors:=colors, dispValues:=True)
     
     lastActiveCell.Activate
     
     Exit Sub
     
-NoInfoErr:
+LaborDoughtnut:
         'No Production information, still set a chart of empty values anyways
-    If Err.Number = vbObjectError + 1000 Then
-        GoTo 10
+    If Err.Number = vbObjectError + 1000 Or Err.Number = vbObjectError + 1100 Then
+        Resume NoData
+    ElseIf Err.Number = vbObjectError >= 5000 Then
+        'Propogate the Error up from Outisde Sheet
+        Err.Raise Number:=Err.Number, Description:=Err.Description
     Else
-        On Error GoTo 0
-        Err.Raise Number:=vbObjectError + 1100, Description:="Problem with fetching the Data for this Job."
+        Err.Raise Number:=vbObjectError + 4000, Description:="Error Occurred at " & vbCrLf & "Func. ShopStatus.CreateLaborQtyDoughnut()"
     End If
 
 End Sub
 
 Private Sub CreatePrdHoursDoughnut(Optional jobCell As Range)
+    On Error GoTo ProductionHrsDoughnut
+
     If jobCell Is Nothing Then
         Set jobCell = GetActiveJob()
         If jobCell Is Nothing Then Exit Sub
@@ -597,7 +617,7 @@ Private Sub CreatePrdHoursDoughnut(Optional jobCell As Range)
     Dim Yvals() As Variant
     
     Set indCell = Sheets("ShopLoad").GetJobInd(jobCell.Value)
-    If indCell Is Nothing Then Err.Raise Number:=vbObjectError + 1100, Description:="Can't find this job on the Shop Load"
+    If indCell Is Nothing Then Err.Raise Number:=vbObjectError + 4100, Description:="Can't find this job on the Shop Load" & vbCrLf & "Func. ShopStatus.CreateLaborQtyDoughnut()"
     Set lastActiveCell = activeCell
         
     jobCell.Activate   'Charts are created using ranges around the active cell, need to select something that wont cause errors then come back to the main cell
@@ -619,11 +639,20 @@ Private Sub CreatePrdHoursDoughnut(Optional jobCell As Range)
     Yvals = Yrange
     
     
-    Call DestroyPieCharts(destroyLine:=True)
-    Call DestroyBottomCharts
+    Call DestroyCharts(destroyPie:=True, destroyLine:=True, destroyBar:=True)
     Call CreateDoughnutChart(Xrange:=Xvals, Yrange:=Yvals, colors:=colors, dispValues:=True)
 
     lastActiveCell.Activate
+    
+    Exit Sub
+    
+ProductionHrsDoughnut:
+    'No Production information, still set a chart of empty values anyways
+    If Err.Number = vbObjectError = 4100 Then
+        Err.Raise Number:=Err.Number, Description:=Err.Description
+    Else
+        Err.Raise Number:=vbObjectError + 4100, Description:="Error Occurred at " & vbCrLf & "Func. ShopStatus.CreateLaborQtyDoughnut()"
+    End If
     
 End Sub
 
@@ -634,6 +663,8 @@ End Sub
                                                 '-----------------   Bar/Lines   ----------------------
 
 Private Sub CreateInspBarChart(Optional jobCell As Range)
+    On Error GoTo CreateInspBarChartErr
+
     If jobCell Is Nothing Then
         Set jobCell = GetActiveJob()
         If jobCell Is Nothing Then Exit Sub
@@ -646,7 +677,12 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
     Dim rev As String
     Dim faType As String
     
+    Dim Yrange As Collection
+    Dim empRange As Range
+    Dim colorRange As Range
+    Dim rtAddy As String
     
+    Set Yrange = New Collection
     Set lastActiveCell = activeCell
     jobCell.Activate
     
@@ -660,12 +696,7 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
                                                     
     
     
-    Dim Yrange As Collection
-    Dim empRange As Range
-    Dim colorRange As Range
-    Dim rtAddy As String
     
-    Set Yrange = New Collection
     If rtRange Is Nothing Then GoTo 10 'TODO: handle we couldnt get the job info / there are no routines for this job
     
     
@@ -694,9 +725,6 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
         
     Loop While True
     
-10
-'    If Yrange.Count = 0 Then Exit Sub 'TODO: handle we didnt have any inspections
-        'Reset the routineRange
     Set rtRange = Sheets("MeasurementInfo").Range(rtAddy)
     
     Dim shiftsWorked As String
@@ -707,7 +735,7 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
     finalAQL = indCell.Offset(0, Sheets("ShopLoad").GetCol("AQL Req") - indCell.column).Value
     currentAQL = indCell.Offset(0, Sheets("ShopLoad").GetCol("Curr Req") - indCell.column).Value
     
-    
+NoInfo:
     
     Call DestroyBottomCharts
     CreateBarChart Xrange:=rtRange, Yrange:=Yrange, empRange:=empRange, colorRange:=colorRange, _
@@ -715,13 +743,23 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
     
     lastActiveCell.Activate
     
-'TODO: erorr handlers here
-        
+    Exit Sub
+    
+CreateInspBarChartErr:
+    If Err.Number = vbObjectError + 1300 Then
+        Resume NoInfo
+    ElseIf Err.Number = vbObjectError + 5300 Then
+        Err.Raise Number:=Err.Number, Description:="Error Occured on " & vbCrLf & "ShopStatus.CreateInspBarChart()" & vbCrLf & "--> MeasurementInfo.GetEmpInspData()"
+    Else
+        Err.Raise Number:=vbObjectError + 4300, Description:="Error Occured on " & vbCrLf & "Sub. ShopStatus.CreateInspBarChart()"
+    End If
 
 End Sub
 
 
 Private Sub CreateLaborQtyTimeSeries(Optional jobCell As Range)
+    On Error GoTo CreateLaborQtyTimeSeriesErr
+
     If jobCell Is Nothing Then
         Set jobCell = GetActiveJob()
         If jobCell Is Nothing Then Exit Sub
@@ -742,14 +780,12 @@ Private Sub CreateLaborQtyTimeSeries(Optional jobCell As Range)
     Dim Yrange As Range
     Dim empRange As Range
     
-    On Error GoTo NoInfoErr
     Set Xrange = Sheets("ProdInfo").GetProductionLaborData(jobNum:=jobCell.Value, opNum:=opNum, colors:=colors)
     If Xrange Is Nothing Then GoTo 10
     Set Yrange = Xrange.Offset(0, 1)
     Set empRange = Xrange.Offset(0, 2)
     
-10
-    On Error GoTo 0
+NoInfo:
     Call DestroyBottomCharts
     Call CreateTimeSeriesChart(Xrange:=Xrange, Yrange:=Yrange, empRange:=empRange, colors:=colors)
 
@@ -757,14 +793,18 @@ Private Sub CreateLaborQtyTimeSeries(Optional jobCell As Range)
     
     Exit Sub
     
-NoInfoErr:
+CreateLaborQtyTimeSeriesErr:
         'No Production information, still set a chart of empty values anyways
     If Err.Number = vbObjectError + 1000 Then
-        GoTo 10
+        Resume NoInfo
+    elseif Err.Number:= vbObjectError + 5000 then
+        Err.Raise Number:=Err.Number, Description:="Error Occured on " & vbCrLf & "ShopStatus.CreateLaborQtyTimeSeries()" & vbCrLf & "--> ProdInfo.GetProductionLaborData()"
+    ElseIf Err.Number = vbObjectError + 5200 Then
+        Err.Raise Number:=Err.Number, Description:="Error Occured on " & vbCrLf & "ShopStatus.CreateLaborQtyTimeSeries()" & vbCrLf & "--> ProdInfo.LoadProductionLaborData()"
     Else
-        On Error GoTo 0
-        Err.Raise Number:=vbObjectError + 1100, Description:="Problem with fetching the Data for this Job."
+        Err.Raise Number:=vbObjectError + 4400, Description:="Error Occured on " & vbCrLf & "ShopStatus.CreateLaborQtyTimeSeries()"
     End If
+    
 
 End Sub
 
@@ -1175,6 +1215,8 @@ Private Function GetOuterLblTop(lblLeft As Double, lblTop As Double, lblWidth As
     End If
     
 End Function
+
+
 
 
 

@@ -16,23 +16,36 @@ Public Sub Clear()
 End Sub
 
 
-'************************************************************
-'*****************   MAIN Routines   ************************
-'************************************************************
+                                                    '*************************************************************
+                                                    '*************************************************************
+                                                    '*                      ProdInfo
+                                                    '*
+                                                    '*************************************************************
+                                                    '*************************************************************
+
+
+                                                    '************************************************************
+                                                    '****************   Public Callables   **********************
+                                                    '************************************************************
 
     'Called by Shop Status, used for generating LaborQty Time Series
     'Finds or Generates the Data needed. Returns the range of the Dates (XValues)
         'Also sets the colors for the given employees
 Public Function GetProductionLaborData(jobNum As String, opNum As String, ByRef colors() As Variant) As Range '-> XValues
+    On Error GoTo GetProductionDataErr
 
         'Should be an empty array that we are populating
     If Not Not colors Then Exit Function
     
         'If we have no jobs yet...
+        'TODO: see if we can shorten this by replacing with a .End(xlUp) and checking against the address
     Dim jobInd As Range
     If Range("B1").Value = "" Then
         Set jobInd = Range("B1")
         GoTo 10
+    ElseIf Range("B1").Value = jobNum Then
+        Set jobInd = Range("B1")
+        GoTo 20
     ElseIf Range("B1").Value <> "" And Range("B2").Value = "" Then
         Set jobInd = Range("B2")
         GoTo 10
@@ -40,7 +53,7 @@ Public Function GetProductionLaborData(jobNum As String, opNum As String, ByRef 
     
         'Find the position of the job information
     Set jobInd = Range("B1:B" & Range("B1").End(xlDown).row).Find(What:=jobNum, MatchCase:=False)
-    
+20
     If jobInd Is Nothing Then
             'If we didnt find anything then get the next spot ready and set the information
                 'TODO: catch an error in the event that we returned no rows
@@ -54,7 +67,7 @@ Public Function GetProductionLaborData(jobNum As String, opNum As String, ByRef 
     ElseIf jobInd.Offset(1, -1).Value <> "" And jobInd.Offset(2, -1).Value = "" Then
         Set GetProductionLaborData = jobInd.Offset(1, -1)
     ElseIf jobInd.Offset(1, -1).Value = "" Then
-        Err.Raise Number:=vbObjectError + 1000, Description:="No production information"
+        Err.Raise Number:=vbObjectError + 1000, Description:="No results"
     End If
     
     'We need to return the range of Time Values and set the colors
@@ -70,30 +83,36 @@ Public Function GetProductionLaborData(jobNum As String, opNum As String, ByRef 
     Set tempRange = Application.Union(distEmps, distEmps.Offset(0, 1), distEmps.Offset(0, 2))
     colors = tempRange
     
+    Exit Function
+    
+GetProductionDataErr:
+    If Err.Number = vbObjectError + 5200 Or Err.Number = vbObjectError + 1000 Then 'Error Occurred from LoadProdLaborData() Or we have no data, let upstream decide what to do with that
+        Err.Raise Number:=Err.Number, Description:=Err.Description
+    Else
+        Err.Raise Number:=vbObjectError + 5000, Description:="Error Occured in " & vbCrLf & "Func. ProdInfo.GetProductionLaborData()"
+    End If
     
 End Function
 
     'Returns range of Unique Employees who submitted data
 Public Function GetProductionLaborDataSUM(jobNum As String) As Range  '-> XValues
-    If Range("B1").Value = "" Then
-        'Raise an error
-    ElseIf Range("B1").Value = "" Then
-        'Raise an error
-    End If
-
+    On Error GoTo GetProdSumErr
+    
     Dim jobInd As Range
-    Set jobInd = Range("B1:B" & Range("B1").End(xlDown).row).Find(What:=jobNum, MatchCase:=False)
-
+    
+    If Range("B1").Value <> "" And Range("B2") <> "" Then
+        Set jobInd = Range("B1:B" & Range("B1").End(xlDown).row).Find(What:=jobNum, MatchCase:=False)
+    End If
+    
     If jobInd Is Nothing Then
         'Raise an error, info should have been created by now
-        Err.Raise Number:=vbObjectError + 1100, Description:="No job after it should have been loaded"
-        
+        Err.Raise Number:=vbObjectError + 5100, Description:="Func. ProdInfo.GetProductionLaborDataSUM()" & vbCrLf & "No job after it should have been loaded"
     ElseIf jobInd.Offset(0, 2).Value = "" Then
-        Err.Raise Number:=vbObjectError + 1100, Description:="No job after it should have been loaded"
+        Err.Raise Number:=vbObjectError + 5100, Description:="Func. ProdInfo.GetProductionLaborDataSUM()" & vbCrLf & "No job after it should have been loaded"
     End If
 
     If jobInd.Offset(1, 2).Value <> "" And (jobInd.Offset(2, 2).Value = "" Or jobInd.Offset(2, 2).Value = "Emp") Then
-        Set GetProductionLaborDataSUM = jobInd.Offset(1, 2)
+        Set GetProductionLaborDataSUM = jobInd.Offset(1, 2)   'Only a single result to return
     ElseIf jobInd.Offset(1, 2).Value <> "" And jobInd.Offset(2, 2).Value <> "" Then
         Dim connectedSet As Range
         Set connectedSet = Range(jobInd.Offset(1, 2), jobInd.Offset(1, 2).End(xlDown)).Find("Emp", MatchCase:=False)
@@ -103,36 +122,34 @@ Public Function GetProductionLaborDataSUM(jobNum As String) As Range  '-> XValue
         Else
             Set GetProductionLaborDataSUM = Range(jobInd.Offset(1, 2), connectedSet.Offset(-1, 0))
         End If
-    ElseIf jobInd.Offset(1, 2).Value = "" Then
-        'TODO: Err.Raise
+    ElseIf jobInd.Offset(1, 2).Value = "" Or jobInd.Offset(1, 2).Value = "Emp" Then
+        Err.Raise Number:=vbObjectError + 1100, Description:="No Results"
     End If
     
-    
-    
-'    If jobInd.Offset(1, 2).Value <> "" And jobInd.Offset(2, 2).Value <> "" Then
-'        Dim connectedSet As Range
-'        Set connectedSet = Range(jobInd.Offset(1, 2), jobInd.Offset(1, 2).End(xlDown)).Find("Emp", MatchCase:=False)
-'
-'        If connectedSet Is Nothing Then
-'            Set GetProductionLaborDataSUM = Range(jobInd.Offset(1, 2), jobInd.Offset(1, 2).End(xlDown))
-'        Else
-'            Set GetProductionLaborDataSUM = Range(jobInd.Offset(1, 2), connectedSet.Offset(-1, 0))
-'        End If
-'
-'    ElseIf jobInd.Offset(1, 2).Value <> "" And (jobInd.Offset(2, 2).Value = "" Or jobInd.Offset(2, 2).Value = "Emp") Then
-'        Set GetProductionLaborDataSUM = jobInd.Offset(1, 2)
-'    ElseIf jobInd.Offset(1, 2).Value = "" Then
-'        'TODO: Err.Raise
-'    End If
+    Exit Function
 
+GetProdSumErr:
+    If Err.Number = vbObjectError + 1100 Or Err.Number = vbObjectError + 5100 Then
+        Err.Raise Number:=Err.Number, Description:=Err.Description
+    Else
+        Err.Raise Number:=vbObjectError + 5100, Description:="Error Occured on " & vbCrLf & "Func. ProdInfo.GetProductionLaborDataSUM()"
+    End If
 End Function
 
+
+
+                                                    '************************************************************
+                                                    '****************   Private Routines   **********************
+                                                    '************************************************************
 
     'Called by GetProductionLaborData,
         'Sets jobInformation from sql Query
 Private Sub LoadProdLaborData(targetRange As Range, jobNum As String, opNum As String)
     
 'Set the time series of Submitted Good Parts
+    On Error GoTo LoadProdLaborErr
+
+
     targetRange.Value = jobNum
     Dim resultArr() As Variant
         'TODO: ready to capture an error in the event that there is no production, like setup perhaps
@@ -228,13 +245,15 @@ Private Sub LoadProdLaborData(targetRange As Range, jobNum As String, opNum As S
             i = i + 1
             If color <> 0 Then subCell.Offset(0, 2).Value = color
     Next subCell
-
+    
+    Exit Sub
+LoadProdLaborErr:
+    Err.Raise Number:=vbObjectError + 5200, Description:="Error Occured on " & vbCrLf & "Sub. ProdInfo.LoadProdLaborData()"
 End Sub
 
-
-'************************************************************
-'***********   Worksheet Helper Functions   *****************
-'************************************************************
+                                                    '************************************************************
+                                                    '**************   Worksheet Helper Funcs  *******************
+                                                    '************************************************************
 
     'Called by LoadProdLaborData()
         'If a recordSet one has a single row, then it returns as a 1d array, as opposed to the normal 2d
@@ -250,6 +269,7 @@ Function GetDimension(var As Variant) As Long
 Err:
     GetDimension = i - 1
 End Function
+
 
 
 
