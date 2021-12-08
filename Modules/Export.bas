@@ -14,7 +14,7 @@ Sub ExportModules()
         
         Select Case comp.Type
             Case vbext_ComponentType.vbext_ct_Document
-                If comp.Name = "ThisWorkbook" Or comp.Name = "Sheet1" Or comp.Name = "Sheet3" Or comp.Name = "Sheet2" Or comp.Name = "Sheet4" Then
+                If comp.Name = "ThisWorkbook" Or comp.Name = "Sheet1" Or comp.Name = "Sheet3" Or comp.Name = "Sheet2" Or comp.Name = "Sheet4" Or comp.Name = "Sheet5" Then
                     extension = ".txt"
 '                    subFolder = "Excel Objects"
                     subFolder = "Modules"

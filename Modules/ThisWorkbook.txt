@@ -46,7 +46,7 @@ Private Sub printColor()
 End Sub
 
 Sub test()
-    MsgBox Selection.Top
+    MsgBox ThisWorkbook.path
 
     'Routine Arrow
         'Top 201
@@ -62,6 +62,16 @@ Sub test()
         'Top  315
         'Left  639  (right arrow)
         'Left  679.5 (left arrow)
+
+
+End Sub
+
+
+Public Sub testBool()
+
+    If 0 Then
+        Debug.Print ("true")
+    End If
 
 
 End Sub

@@ -1,0 +1,152 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet5"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Private Const RT_WIN_SIZE = 2
+Private Const FT_WIN_SIZE = 14
+
+Dim rtWinOffset As Integer
+Dim ftWinOffset As Integer
+Dim jobNum As String
+Dim rtName As String
+
+Public Sub Clear()
+    Cells.Clear
+    Cells.NumberFormat = "@"
+End Sub
+
+
+Public Function GetInitFeatures(jobNum As String) As Range
+    Dim jobCell As Range
+    
+    
+
+
+End Function
+
+
+Private Sub LoadJobFeatures(jobCell As Range, jobNum As String, partNum As String, rev As String, faType As String)
+    'Likely will also need some more data like
+    
+    'TODO: error handle here
+    
+    
+    Dim routineResults() As Variant
+    Dim faRoutine As String
+    jobCell.Value = jobNum
+    
+    
+    Select Case faType
+        Case "None"
+            faRoutine = "%FA_VIS%"
+        Case "Full"
+            faRoutine = "%FA_FIRST%"
+        Case "Mini"
+            faRoutine = "%FA_MINI%"
+        Case Else
+            'TODO: error out
+    End Select
+    
+    
+    routineResults = DBconnections.GetJobUnqiueRoutines(partNum:=partNum, rev:=rev, faRoutine:=faRoutine)
+    'TODO: error handle on No Results
+
+    routineResults = Application.WorksheetFunction.Transpose(routineResults)
+    
+    
+    Dim rtFillRange As Range
+    Set rtFillRange = Range(jobCell.Offset(0, 1), jobCell.Offset(UBound(routineResults, 1) - 1, 1))
+    
+    rtFillRange = routineResults 'Set Routine List
+    
+    For Each rtCell In rtFillRange
+        Dim results() As Variant
+        Dim features() As Variant
+        Dim inspTypes() As Variant
+        results = DBconnections.GetRoutineFeatures(jobNum:=jobNum, rtName:=rtCell.Value)
+        results = Application.WorksheetFunction.Transpose(results)
+        
+        'TODO: what if we have a single result value, how to handle
+        features = Application.index(results, , 1)
+        inspTypes = Application.index(results, , 2)
+        
+        Dim i As Integer
+        For i = 1 To UBound(features, 1)
+            With rtCell.Offset(0, i)
+                .Value = features(i, 1)
+                If inspTypes(i, 1) = 0 Then
+                    .Font.color = RGB(102, 46, 155)
+                End If
+            
+            End With
+        
+        Next i
+NextRoutine:
+    Next rtCell
+    
+    'Must replace the names of the routine to be easier to read.... maybe
+
+
+End Sub
+
+
+
+
+Public Function FeaturesAhead() As Boolean
+
+
+
+End Function
+
+
+Public Function FeaturesBehind() As Boolean
+
+
+
+End Function
+
+Public Function RoutinesAhead() As Boolean
+
+
+
+End Function
+
+
+Public Function RoutinesBehind() As Boolean
+
+
+
+End Function
+
+
+
+
+
+
+
+
+Private Sub TestLoadFeatures()
+    Dim jobCell As Range
+    Dim jobNum As String
+    Dim partNum As String
+    Dim rev As String
+    Dim faType As String
+    
+    Set jobCell = Range("A1")
+    jobNum = "NV16783"
+    partNum = "1907018"
+    rev = "B"
+    faType = "None"
+    
+    Call LoadJobFeatures(jobCell:=jobCell, jobNum:=jobNum, partNum:=partNum, rev:=rev, faType:=faType)
+    
+
+
+
+End Sub
+

@@ -10,6 +10,7 @@ Attribute VB_Exposed = True
 Private Sub Cleanup()
 '    Rows("2:100").Clear
     Range(Cells(2, 1), Cells(600, 24)).Clear
+    Range(Cells(2, 26), Cells(600, 26)).Clear
     Cells.NumberFormat = "@"
 End Sub
 
@@ -138,17 +139,17 @@ Private Sub SetMLReady()
     Set workingRange = Range("A2:A" & Range("A2").End(xlDown).row)
     
     Dim jobNum As String
-    Dim partnum As String
+    Dim partNum As String
     Dim rev As String
     Dim machType As String
     
     For Each subCell In workingRange
         jobNum = subCell.Offset(0, 3).Value
-        partnum = subCell.Offset(0, 5).Value
+        partNum = subCell.Offset(0, 5).Value
         rev = subCell.Offset(0, 6).Value
         machType = subCell.Offset(0, 18).Value
         
-        If DBconnections.IsMeasurLinkJob(jobNum, partnum, rev, machType) Then
+        If DBconnections.IsMeasurLinkJob(jobNum, partNum, rev, machType) Then
             subCell.Offset(0, 21).Value = "TRUE"
         Else
             subCell.Offset(0, 21).Value = "FALSE"
@@ -221,7 +222,8 @@ conReadSubCell:
     Exit Sub
 
 ExcelOLEDBerr:
-    MsgBox Err.Description & vbCrLf & subCell.Offset(0, 3).Value & vbTab & subCell.Offset(0, 4).Value, vbCritical
+    MsgBox "No Customer AQL was set for" & vbCrLf & "Job: " & subCell.Offset(0, 3).Value & vbTab & "Draw: " & subCell.Offset(0, 4).Value & vbCrLf & "Setting 1.00 AQL as Default" & vbCrLf, vbInformation
+    subCell.Offset(0, 22).Value = "1"
     On Error GoTo 0
     Resume contSubCell
     

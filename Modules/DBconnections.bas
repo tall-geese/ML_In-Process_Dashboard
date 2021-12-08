@@ -254,14 +254,14 @@ QueryError:
 
 End Function
 
-Public Function GetJobUnqiueRoutines(partnum As String, rev As String, faRoutine As String) As Variant()
+Public Function GetJobUnqiueRoutines(partNum As String, rev As String, faRoutine As String) As Variant()
     Set fso = New FileSystemObject
     Dim query As String
     Dim params() As Variant
     
     query = fso.OpenTextFile(config.QUERY_PATH & "MLUniqueRoutineList.sql", ForReading).ReadAll()
 '    query = Replace(query, "{FA_TYPE}", faRoutine)
-    params = Array("p.PartName," & partnum & "_" & rev, "rt.RoutineName," & faRoutine)
+    params = Array("p.PartName," & partNum & "_" & rev, "rt.RoutineName," & faRoutine)
     
     On Error GoTo QueryError
     'TODO:set the onError
@@ -278,10 +278,36 @@ QueryError:
     If Err.Number = vbObjectError + 2000 Then
         Resume noResults
     Else
-        MsgBox "Func: GetJobUnqiueRoutines() Failed" & vbCrLf & partnum & "_" & rev & vbCrLf & faRoutine & vbCrLf & vbCrLf & Err.Description
+        MsgBox "Func: GetJobUnqiueRoutines() Failed" & vbCrLf & partNum & "_" & rev & vbCrLf & faRoutine & vbCrLf & vbCrLf & Err.Description
     End If
 
 End Function
+
+Public Function GetRoutineFeatures(jobNum As String, rtName As String) As Variant()
+    Set fso = New FileSystemObject
+    Dim query As String
+    Dim params() As Variant
+    
+    query = fso.OpenTextFile(config.QUERY_PATH & "RoutineFeatures.sql", ForReading).ReadAll()
+    params = Array("r.RunName," & jobNum, "rt.RoutineName," & rtName)
+    
+    On Error GoTo RtFeaturesErr
+    Call SQLQuery(queryString:=query, conn_enum:=Connections.ML, params:=params)
+    
+    GetRoutineFeatures = ResultRecordSet.GetRows()
+    
+noResults:
+    Exit Function
+    
+RtFeaturesErr::
+    If Err.Number = vbObjectError + 2000 Then
+        Resume noResults
+    Else
+        MsgBox "Func: GetRoutineFeatures() Failed" & vbCrLf & partNum & "_" & rev & vbCrLf & faRoutine & vbCrLf & vbCrLf & Err.Description
+    End If
+
+End Function
+
 
 Public Function GetEmployeeInspCount(jobNum As String, faRoutine As String, employees As Variant) As Variant()
     Set fso = New FileSystemObject
@@ -306,13 +332,13 @@ QueryError:
 End Function
 
 
-Private Function PartMLReady(partnum As String, revNum As String) As Variant
+Private Function PartMLReady(partNum As String, revNum As String) As Variant
     Set fso = New FileSystemObject
     Dim query As String
     Dim params() As Variant
     
     query = fso.OpenTextFile(config.QUERY_PATH & "PartMLReady.sql", ForReading).ReadAll()
-    params = Array("pr.PartNum," & partnum, "pr.RevisionNum," & revNum)
+    params = Array("pr.PartNum," & partNum, "pr.RevisionNum," & revNum)
 
     Call SQLQuery(queryString:=query, conn_enum:=Connections.E10, params:=params)
     
@@ -337,7 +363,7 @@ Function IsMeasurLinkJob(jobNumber As String, partNumber As String, PartRev As S
     
     'On Error GoTo 10
     
-    machines = PartMLReady(partnum:=partNumber, revNum:=PartRev)
+    machines = PartMLReady(partNum:=partNumber, revNum:=PartRev)
     
     If (Not machines) = -1 Then GoTo 10   'No information for this part, but we may still have created an excel IR for it.
     

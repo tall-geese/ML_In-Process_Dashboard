@@ -137,7 +137,7 @@ Public Sub AddJob(jobInfo() As Variant)
     
     Range("G" & lastCellRange.row).HorizontalAlignment = xlLeft
     If lastCellRange.Offset(0, 7).Value = "[Setup]" Then
-        lastCellRange.EntireRow.Font.color = RGB(128, 128, 128)
+        Range(Cells(lastCellRange.row, "B"), Cells(lastCellRange.row, "H")).Font.color = RGB(128, 128, 128)
     End If
     
         'Put some dummy text under status to prevent desc. overflow
@@ -161,7 +161,8 @@ Private Sub SetPicture(Target As Range)
         'TODO: we want to establish a warning sign based on the desired amount of inspections to alert the PQCI
     Select Case Target.Value
         Case "[Setup]"   'When setup is not 100%, There isnt going to be much to see here
-            picAddy = "https://cdn.hubblecontent.osi.office.net/icons/publish/icons_gears/gears.svg"
+'            picAddy = "https://cdn.hubblecontent.osi.office.net/icons/publish/icons_gears/gears.svg"
+            picAddy = ThisWorkbook.path & "\static\img\setup.svg"
             colorFill = RGB(128, 128, 128)
         Case "[Production]"  'TODO: might get rid of this, I can usually assume that its in production
 '            picAddy = "https://cdn.hubblecontent.osi.office.net/icons/publish/icons_arrowcircle/arrowcircle.svg"
@@ -176,9 +177,9 @@ Private Sub SetPicture(Target As Range)
     If picAddy = "" Then Exit Sub
     Set picture = Shapes.AddPicture(picAddy, False, True, Top:=Target.Top, Left:=Target.Left + 15, Height:=20, Width:=20)
     
-    If colorFill <> 0 Then
-        picture.Fill.ForeColor.RGB = colorFill
-    End If
+'    If colorFill <> 0 Then
+'        picture.Fill.ForeColor.RGB = colorFill
+'    End If
     
 End Sub
 
@@ -205,10 +206,6 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
     
     Dim validSelection As Boolean
     
-    
-    
-    'TODO: temp manual setting until we figure out what to do with this missing reference
-    'TODO dont hardset the range here, must find it manually
     If lastCellRange Is Nothing Then
         Set lastCellRange = GetLastCell()
     End If
@@ -225,6 +222,9 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
             'Reset Arrows
         Range("J2:J8").Font.color = RGB(208, 206, 206)
         Target.Offset(0, -1).Font.color = RGB(0, 0, 0)
+        
+        Range("K2:K8").Font.color = RGB(150, 150, 150)
+        Target.Font.color = RGB(0, 0, 0)
             'Reset Cell Color
         Application.Union(Range("K2:N2"), Range("K4:N4"), Range("K6:N6"), Range("K8:N8")).Interior.color = RGB(205, 242, 255)
         Range(Target.Address & ":N" & Target.row).Interior.color = RGB(101, 215, 255)
@@ -233,8 +233,8 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
             Case "$K$2"  'Setup Info
                 Call CreateSetupDoughnut
             Case "$K$4" 'Acceptable Inspections
-                Call CreateInspDoughnut
                 Call CreateInspBarChart
+                Call CreateInspDoughnut
             Case "$K$6"  'Parts Submitted
                 Call CreateLaborQtyDoughnut
                 Call CreateLaborQtyTimeSeries
@@ -289,7 +289,7 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
             Case "$K$4"  'Acceptable Inspection Info
                 Call CreateInspBarChart(jobCell:=jobCell)
                 Call CreateInspDoughnut(jobCell:=jobCell)
-            
+                
             Case "$K$6"  'Parts Submitted
                 Call CreateLaborQtyDoughnut(jobCell:=jobCell)
                 Call CreateLaborQtyTimeSeries(jobCell:=jobCell)
@@ -310,8 +310,8 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
     Exit Sub
     
 selectionErr:
-    If Err.Number <> vbObjectError + 1000 Then
-        Call DeleteImages
+    If Err.Number <> vbObjectError + 1000 Then  'TODO, no reason to special error handle here
+        Call DestroyCharts(destroyPie:=True, destroyLine:=True, destroyBar:=True)
         'MsgBox Err.Number & vbCrLf & Err.Description
     End If
     GoTo 10
@@ -512,17 +512,17 @@ Private Sub CreateInspDoughnut(Optional jobCell As Range)
     
 NoData:
 
-    Call DestroyCharts(destroyPie:=True, destroyLine:=True, destroyBar:=True)
+    Call DestroyCharts(destroyPie:=True, destroyLine:=True)
     Call CreateDoughnutChart(Xrange:=Xvals, Yrange:=Yvals, colors:=fmtColors, dispValues:=True)
     
     lastActiveCell.Activate
     Exit Sub
 
 InspDoughnutErr:
-    If Err.Number = vbObjectError + 1100 Then
+    If Err.Number = vbObjectError + 1400 Then
         Resume NoData
     ElseIf Err.Number = vbObjectError + 5400 Then
-        Msgbox "Error Occured at" & vbcrlf & "ShopStatus.CreateInspDoughnut()" & vbcrlf "--> MeasurementInfo.GetEmpInspDataSUM()" & vbcrlf & Err.Number & Err.Description
+        MsgBox "Error Occured at" & vbCrLf & "ShopStatus.CreateInspDoughnut()" & vbCrLf & "--> MeasurementInfo.GetEmpInspDataSUM()" & vbCrLf & Err.Number & Err.Description
     Else
         MsgBox "Error Occured at" & vbCrLf & "ShopStatus.CreateInspDoughnut()" & vbCrLf & Err.Number & Err.Description
     End If
@@ -582,7 +582,7 @@ Private Sub CreateLaborQtyDoughnut(Optional jobCell As Range)
     
 NoData:
 
-    Call DestroyCharts(destroyBar:=True, destroyLine:=True, destroyBar:=True)
+    Call DestroyCharts(destroyPie:=True, destroyLine:=True, destroyBar:=True)
     Call CreateDoughnutChart(Xrange:=Xvals, Yrange:=Yvals, colors:=colors, dispValues:=True)
     
     lastActiveCell.Activate
@@ -673,7 +673,7 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
     Dim lastActiveCell As Range
     Dim rtRange As Range
     Dim indCell As Range
-    Dim partnum As String
+    Dim partNum As String
     Dim rev As String
     Dim faType As String
     
@@ -687,18 +687,12 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
     jobCell.Activate
     
     Set indCell = Sheets("ShopLoad").GetJobInd(jobCell.Value)
-    partnum = indCell.Offset(0, Sheets("ShopLoad").GetCol("Part#") - indCell.column).Value
+    partNum = indCell.Offset(0, Sheets("ShopLoad").GetCol("Part#") - indCell.column).Value
     rev = indCell.Offset(0, Sheets("ShopLoad").GetCol("Rev") - indCell.column).Value
     faType = indCell.Offset(0, Sheets("ShopLoad").GetCol("FA Type") - indCell.column).Value
     
-    Set rtRange = Sheets("MeasurementInfo").GetEmpInspData(jobNum:=jobCell.Value, partNumber:=partnum, _
+    Set rtRange = Sheets("MeasurementInfo").GetEmpInspData(jobNum:=jobCell.Value, partNumber:=partNum, _
                                                     rev:=rev, faType:=faType)
-                                                    
-    
-    
-    
-    If rtRange Is Nothing Then GoTo 10 'TODO: handle we couldnt get the job info / there are no routines for this job
-    
     
     rtAddy = rtRange.Address
     
@@ -707,11 +701,9 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
         Dim colorCell As Range
         
         Set rtRange = rtRange.Offset(0, 1)
-        
         Set empCell = rtRange.Cells(1).Offset(-1, 0)
-        If empCell.Value = "" Then GoTo 10
-        
         Set colorCell = rtRange.Cells(rtRange.Count).Offset(2, 0)
+        If empCell.Value = "" Then GoTo 10
         
         Yrange.Add rtRange
         
@@ -724,7 +716,8 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
         End If
         
     Loop While True
-    
+10
+
     Set rtRange = Sheets("MeasurementInfo").Range(rtAddy)
     
     Dim shiftsWorked As String
@@ -737,7 +730,7 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
     
 NoInfo:
     
-    Call DestroyBottomCharts
+    Call DestroyCharts(destroyLine:=True, destroyBar:=True)
     CreateBarChart Xrange:=rtRange, Yrange:=Yrange, empRange:=empRange, colorRange:=colorRange, _
                     shiftsWorked:=CInt(shiftsWorked), finalAQL:=CInt(finalAQL), currentAQL:=CInt(currentAQL)
     
@@ -781,12 +774,11 @@ Private Sub CreateLaborQtyTimeSeries(Optional jobCell As Range)
     Dim empRange As Range
     
     Set Xrange = Sheets("ProdInfo").GetProductionLaborData(jobNum:=jobCell.Value, opNum:=opNum, colors:=colors)
-    If Xrange Is Nothing Then GoTo 10
     Set Yrange = Xrange.Offset(0, 1)
     Set empRange = Xrange.Offset(0, 2)
     
 NoInfo:
-    Call DestroyBottomCharts
+    Call DestroyCharts(destroyLine:=True, destroyBar:=True)
     Call CreateTimeSeriesChart(Xrange:=Xrange, Yrange:=Yrange, empRange:=empRange, colors:=colors)
 
     lastActiveCell.Activate
@@ -797,7 +789,7 @@ CreateLaborQtyTimeSeriesErr:
         'No Production information, still set a chart of empty values anyways
     If Err.Number = vbObjectError + 1000 Then
         Resume NoInfo
-    elseif Err.Number:= vbObjectError + 5000 then
+    ElseIf Err.Number = vbObjectError + 5000 Then
         Err.Raise Number:=Err.Number, Description:="Error Occured on " & vbCrLf & "ShopStatus.CreateLaborQtyTimeSeries()" & vbCrLf & "--> ProdInfo.GetProductionLaborData()"
     ElseIf Err.Number = vbObjectError + 5200 Then
         Err.Raise Number:=Err.Number, Description:="Error Occured on " & vbCrLf & "ShopStatus.CreateLaborQtyTimeSeries()" & vbCrLf & "--> ProdInfo.LoadProductionLaborData()"
@@ -939,7 +931,7 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
             Case 0
                 xVal = currentAQL
                 configurations(0) = "Curr AQL" & vbCrLf & "{" & currentAQL & "}"
-                configurations(1) = config.CURR_AQL_COLOR
+                configurations(1) = config.CURR_AQL_COLOR_GOOD
             Case 1
                 xVal = finalAQL
                 configurations(0) = "AQL" & vbCrLf & "{" & finalAQL & "}"
@@ -948,7 +940,7 @@ Private Sub CreateBarChart(Xrange As Range, Yrange As Collection, empRange As Ra
                 If shiftsWorked = 0 Then GoTo nextSeries
                 xVal = shiftsWorked
                 configurations(0) = "1XSHIFT" & vbCrLf & "{" & shiftsWorked & "}"
-                configurations(1) = config.XSHIFT_COLOR
+                configurations(1) = config.XSHIFT_COLOR_GOOD
             Case Else
                 MsgBox "we shouldnt be here"
         
@@ -989,6 +981,7 @@ nextSeries:
     End With
     
     Dim subCell As Range
+    Dim IPfailed As Boolean
     Dim k As Integer
     k = 1
     
@@ -1001,9 +994,13 @@ nextSeries:
         
             With barChart.Chart.SeriesCollection(i - 1).DataLabels(k)
                 .Format.TextFrame2.TextRange.Font.Bold = True
-                .Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = config.XSHIFT_COLOR  'Set the data label red for 1XSHIFT
                 If CInt(.Text) < shiftsWorked Then
                     .Format.TextFrame2.TextRange.Font.Size = 18
+                    .Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = config.XSHIFT_COLOR_BAD
+                    barChart.Chart.SeriesCollection(j - 1).Format.Line.ForeColor.RGB = config.XSHIFT_COLOR_BAD
+                    barChart.Chart.SeriesCollection(j - 1).Points(2).DataLabel.Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = config.XSHIFT_COLOR_BAD
+                Else
+                    .Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = config.XSHIFT_COLOR_GOOD
                 End If
             End With
         
@@ -1011,10 +1008,19 @@ nextSeries:
                     Or InStr(subCell.Value, "IP_COMPAR") > 0 Or InStr(subCell.Value, "IP_SYLVAC") > 0 Or InStr(subCell.Value, "IP_CMM") > 0 Then
             With barChart.Chart.SeriesCollection(i - 1).DataLabels(k)
                 .Format.TextFrame2.TextRange.Font.Bold = True
-                .Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = config.CURR_AQL_COLOR  'Set the data label orange for AQL
+                  'Set the data label orange for AQL
                 
                 If CInt(.Text) < currentAQL Then
                     .Format.TextFrame2.TextRange.Font.Size = 18
+                    .Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = config.CURR_AQL_COLOR_BAD
+                    barChart.Chart.SeriesCollection(j - 3).Format.Line.ForeColor.RGB = config.CURR_AQL_COLOR_BAD
+                    barChart.Chart.SeriesCollection(j - 3).Points(2).DataLabel.Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = config.CURR_AQL_COLOR_BAD
+                    IPfailed = True
+                Else
+                    .Format.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = config.CURR_AQL_COLOR_GOOD
+                End If
+                If IPfailed = True Then
+                    
                 End If
             End With
         Else
@@ -1215,6 +1221,8 @@ Private Function GetOuterLblTop(lblLeft As Double, lblTop As Double, lblWidth As
     End If
     
 End Function
+
+
 
 
 

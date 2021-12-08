@@ -162,7 +162,7 @@ Private Sub LoadMeasurementInfo(targetCell As Range, jobNum As String, partNumbe
     
 'Routines
     'All of the Routines that we SHOULD have measurements for...
-    routines = DBconnections.GetJobUnqiueRoutines(partnum:=partNumber, rev:=rev, faRoutine:=faRoutine)
+    routines = DBconnections.GetJobUnqiueRoutines(partNum:=partNumber, rev:=rev, faRoutine:=faRoutine)
     If (Not routines) = -1 Then Exit Sub
     
     Dim rtFillRange As Range
@@ -173,7 +173,7 @@ Private Sub LoadMeasurementInfo(targetCell As Range, jobNum As String, partNumbe
 'Employees
     
     employees = DBconnections.GetEmployeeListSum(jobNum:=jobNum, faRoutine:=faRoutine)
-    If (Not employees) = -1 Then Exit Sub
+    If (Not employees) = -1 Then
         targetCell.Offset(rtFillRange.Count + 1, 1).Value = "SUM"
         Exit Sub  'No Employees / Measurements
     End If
@@ -308,6 +308,8 @@ SetSum:
         End Select
         End With
     Next i
+    
+    Exit Sub
 
 LoadMeasurementInfoErr:
     Err.Raise Number:=vbObjectError + 5500, Description:="Error Occured On" & vbCrLf & "Sub. MeasurementInfo.LoadMeasurementInfo()"

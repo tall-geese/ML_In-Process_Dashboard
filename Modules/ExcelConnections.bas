@@ -36,10 +36,10 @@ Public Function GetXLAQL(fpath As String) As String
     
     
 BackupAQL:
-    On Error GoTo NullValErr   'If not ML Frequency chart then goto START HERE
+    On Error Resume Next
     Set ExcelRecordSet = ExcelConnection.Execute("SELECT * FROM [START HERE$I10:I10]")
     GetXLAQL = ExcelRecordSet.Fields(0)
-    
+        
     ExcelConnection.Close
     Exit Function
     
