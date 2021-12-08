@@ -21,6 +21,7 @@ Public Sub InitShopLoad()
     Call Sheets("ShopStatus").Cleanup
     Call Sheets("ProdInfo").Clear
     Call Sheets("MeasurementInfo").Clear
+    Call Sheets("JobFeatures").Clear
     
     Dim results() As Variant
     results = DBconnections.GetShopLoadInfo()

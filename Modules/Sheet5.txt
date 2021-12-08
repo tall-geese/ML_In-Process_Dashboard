@@ -7,13 +7,16 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
+Option Explicit
+
 Private Const RT_WIN_SIZE = 2
 Private Const FT_WIN_SIZE = 14
 
 Dim rtWinOffset As Integer
 Dim ftWinOffset As Integer
-Dim jobNum As String
-Dim rtName As String
+Dim RefJob As String
+Dim RefRoutine As String
+Dim RefJobCell As Range
 
 Public Sub Clear()
     Cells.Clear
@@ -21,11 +24,56 @@ Public Sub Clear()
 End Sub
 
 
-Public Function GetInitFeatures(jobNum As String) As Range
+Public Function GetInitFeatures(jobNum As String, ByRef rtCells As Collection, ByRef ftCells As Collection)
+    If Not (rtCells Is Nothing) Or Not (ftCells Is Nothing) Then Exit Function  'Should be empty
     Dim jobCell As Range
+    'TODO: Reset all of the header values to the default, set the new jobCell here once we find it...
+    rtWinOffset = 0
+    ftWinOffset = 0
     
+    If Range("A1").Value = "" Then
+        Set jobCell = Range("A1")
+        GoTo 10
+    Else
+        Set jobCell = Range(Cells(1, 1), Cells(Rows.Count, 1).End(xlUp)).Find(jobNum, MatchCase:=False)
+    End If
     
-
+    If jobCell Is Nothing Then
+        Set jobCell = Range("A" & Application.WorksheetFunction.Max(Cells(Rows.Count, "A").End(xlUp).row, Cells(Rows.Count, "B").End(xlUp).row) + 3)
+10
+        Dim indCell As Range
+        Dim partNum As String
+        Dim rev As String
+        Dim faType As String
+        
+        Set indCell = Worksheets("ShopLoad").GetJobInd(jobNum)
+        partNum = indCell.Offset(0, Worksheets("ShopLoad").GetCol("Part#") - indCell.column)
+        rev = indCell.Offset(0, Worksheets("ShopLoad").GetCol("Rev") - indCell.column)
+        faType = indCell.Offset(0, Worksheets("ShopLoad").GetCol("FA Type") - indCell.column)
+        
+        Call LoadJobFeatures(jobCell:=jobCell, jobNum:=jobNum, partNum:=partNum, rev:=rev, faType:=faType)
+    End If
+      
+    'TODO: At this point, we want to check if any routines at all were loaded
+    If jobCell.Offset(0, 1).Value = "" Then
+        'Raise error here
+        Exit Function
+    End If
+    
+    Set rtCells = New Collection
+    Set ftCells = New Collection
+    Dim i As Integer
+    Dim j As Integer
+    
+    For i = 1 To RT_WIN_SIZE
+        rtCells.Add jobCell.Offset(i - 1, 1)
+        For j = 1 To FT_WIN_SIZE
+            ftCells.Add jobCell.Offset(i - 1, 1).Offset(0, j)
+        Next j
+    Next i
+        
+    Set RefJobCell = jobCell
+    'At the very end here, set the jobCell header equal to the jobCell we ultimately found
 
 End Function
 
@@ -60,9 +108,11 @@ Private Sub LoadJobFeatures(jobCell As Range, jobNum As String, partNum As Strin
     
     
     Dim rtFillRange As Range
+    Dim rtCell As Range
     Set rtFillRange = Range(jobCell.Offset(0, 1), jobCell.Offset(UBound(routineResults, 1) - 1, 1))
     
     rtFillRange = routineResults 'Set Routine List
+    
     
     For Each rtCell In rtFillRange
         Dim results() As Variant
@@ -127,9 +177,6 @@ End Function
 
 
 
-
-
-
 Private Sub TestLoadFeatures()
     Dim jobCell As Range
     Dim jobNum As String
@@ -144,9 +191,56 @@ Private Sub TestLoadFeatures()
     faType = "None"
     
     Call LoadJobFeatures(jobCell:=jobCell, jobNum:=jobNum, partNum:=partNum, rev:=rev, faType:=faType)
+End Sub
+
+Private Sub TestGetInitFeatures()
+    Dim rtColl As Collection
+    Dim ftColl As Collection
+    
+    Dim jobNum As String
+    jobNum = "NV16783"
+    
+    Call Clear
+    Call GetInitFeatures(jobNum:=jobNum, rtCells:=rtColl, ftCells:=ftColl)
+    
+    Call QuickSpitoutTest(rtCells:=rtColl, ftCells:=ftColl)
+    
+    Debug.Print ("here")
+
+End Sub
+
+Private Sub QuickSpitoutTest(rtCells As Collection, ftCells As Collection)
+    Dim indexCell As Range
+    Dim i As Integer
+    Dim j As Integer
+    
+    Set indexCell = Range("B10")
+    
+    For i = 0 To rtCells.Count - 1
+        indexCell.Offset(i * 4, 0).Value = rtCells.Item(i + 1).Value
+        For j = 1 To ftCells.Count
+            indexCell.Offset(i * 4 + Application.WorksheetFunction.Floor_Math(j / 8) + 1, j Mod 8).Value = ftCells.Item(j).Value
+        Next j
+    
+    Next i
+    
+    
+    
     
 
 
+End Sub
+
+
+Private Sub dumbTest()
+    Dim i As Integer
+    Dim j As Integer
+    
+    
+    
+    Debug.Print (Application.WorksheetFunction.Floor_Math(i / 7))
+
+    
 
 End Sub
 
