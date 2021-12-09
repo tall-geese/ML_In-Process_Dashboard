@@ -13,7 +13,8 @@ Private Const RT_WIN_SIZE = 2
 Private Const FT_WIN_SIZE = 14
 
 Dim rtWinOffset As Integer
-Dim ftWinOffset As Integer
+Dim ftWinOffset1 As Integer
+Dim ftWinOffset2 As Integer
 Dim RefJob As String
 Dim RefRoutine As String
 Dim RefJobCell As Range
@@ -25,11 +26,18 @@ End Sub
 
 
 Public Function GetInitFeatures(jobNum As String, ByRef rtCells As Collection, ByRef ftCells As Collection)
+    'Need to change this up, we should only be finding and/or setting the jobCell and top level information here
+    'Then going onto call RefreshFeatureValues
+
     If Not (rtCells Is Nothing) Or Not (ftCells Is Nothing) Then Exit Function  'Should be empty
     Dim jobCell As Range
-    'TODO: Reset all of the header values to the default, set the new jobCell here once we find it...
+    
+        'Reset all of the header values to the default, set the new jobCell here once we find it...
     rtWinOffset = 0
     ftWinOffset = 0
+    RefJob = ""
+    RefRoutine = ""
+    Set RefJobCell = Nothing
     
     If Range("A1").Value = "" Then
         Set jobCell = Range("A1")
@@ -56,33 +64,46 @@ Public Function GetInitFeatures(jobNum As String, ByRef rtCells As Collection, B
       
     'TODO: At this point, we want to check if any routines at all were loaded
     If jobCell.Offset(0, 1).Value = "" Then
-        'Raise error here
+        'Raise error here, let the calling function delete anything in the view, including the arrows...
         Exit Function
     End If
     
+'Set the Header Values
+    Set RefJobCell = jobCell
+    RefJob = jobCell.Value
+    RefRoutine = jobCell.Offset(0, 1).Value
+    
+'Call Routine to Collect Features based on Window Index
+    Call RefreshShopStatusValues
+
+End Function
+
+
+Private Sub RefreshShopStatusValues()
+    Dim rtCell As Collection
+    Dim ftCells As Collection
     Set rtCells = New Collection
     Set ftCells = New Collection
     Dim i As Integer
     Dim j As Integer
     
+        'TODO: The offsetting here needs to take into accoutn the indexed position of the moving windows
+        'Also, now we have individual rtFeature Indexed positions....
     For i = 1 To RT_WIN_SIZE
         rtCells.Add jobCell.Offset(i - 1, 1)
         For j = 1 To FT_WIN_SIZE
             ftCells.Add jobCell.Offset(i - 1, 1).Offset(0, j)
         Next j
     Next i
-        
-    Set RefJobCell = jobCell
-    'At the very end here, set the jobCell header equal to the jobCell we ultimately found
+    
+                            'Pass in the collection objects
+    Call Worksheets("ShopStatus").UpdateJobFeatures(rtCells:=rtCells, ftCells:=ftCells)
 
-End Function
+
+End Sub
 
 
 Private Sub LoadJobFeatures(jobCell As Range, jobNum As String, partNum As String, rev As String, faType As String)
-    'Likely will also need some more data like
-    
-    'TODO: error handle here
-    
     
     Dim routineResults() As Variant
     Dim faRoutine As String
@@ -119,59 +140,153 @@ Private Sub LoadJobFeatures(jobCell As Range, jobNum As String, partNum As Strin
         Dim features() As Variant
         Dim inspTypes() As Variant
         results = DBconnections.GetRoutineFeatures(jobNum:=jobNum, rtName:=rtCell.Value)
+        If (Not results) = -1 Then GoTo NextRoutine
         results = Application.WorksheetFunction.Transpose(results)
         
         'TODO: what if we have a single result value, how to handle
-        features = Application.index(results, , 1)
-        inspTypes = Application.index(results, , 2)
-        
-        Dim i As Integer
-        For i = 1 To UBound(features, 1)
-            With rtCell.Offset(0, i)
-                .Value = features(i, 1)
-                If inspTypes(i, 1) = 0 Then
-                    .Font.color = RGB(102, 46, 155)
-                End If
+            'If a Routine only has a single dimension to inspect,then this returns a 1-D array
+        If GetDimension(results) = 1 Then
+            rtCell.Offset(0, 1).Value = results(1)
+            If results(2) = 0 Then
+                rtCell.Offset(0, 1).Font.color = RGB(102, 46, 155)
+            End If
             
-            End With
         
-        Next i
+        Else   'Normally it returns a 2-D array
+            features = Application.index(results, , 1)
+            inspTypes = Application.index(results, , 2)
+            
+            Dim i As Integer
+            For i = 1 To UBound(features, 1)
+                With rtCell.Offset(0, i)
+                    .Value = features(i, 1)
+                    If inspTypes(i, 1) = 0 Then
+                        .Font.color = RGB(102, 46, 155)
+                    End If
+                
+                End With
+            
+            Next i
+        
+        End If
+        
+        
 NextRoutine:
     Next rtCell
     
-    'Must replace the names of the routine to be easier to read.... maybe
+    'TODO: Must replace the names of the routine to be easier to read.... maybe
 
 
 End Sub
 
+                                    '************************************************************
+                                    '************   Window Indexing Functions   *****************
+                                    '
+                                    '**       Called by arrow icons from ShopStatus            **
+                                    '************************************************************
 
 
+Public Function NextJobRoutines() As Boolean
+    rtWinOffset = rtWinOffset + 1
+    Call RefreshShopStatusValues
+End Function
 
-Public Function FeaturesAhead() As Boolean
+Public Function PrevJobRoutines() As Boolean
+    rtWinOffset = rtWinOffset - 1
+    Call RefreshShopStatusValues
+End Function
 
+Public Function NextRt1Features()
+    ftWinOffset1 = ftWinOffset1 + 1
+    Call RefreshShopStatusValues
+End Function
 
+Public Function PrevRt1Features() As Boolean
+    ftWinOffset1 = ftWinOffset1 - 1
+    Call RefreshShopStatusValues
+End Function
+
+Public Function NextRt2Features() As Boolean
+    ftWinOffset2 = ftWinOffset2 + 1
+    Call RefreshShopStatusValues
+End Function
+
+Public Function PrevRt2Features() As Boolean
+    ftWinOffset2 = ftWinOffset2 - 1
+    Call RefreshShopStatusValues
 
 End Function
 
 
-Public Function FeaturesBehind() As Boolean
+                                    '************************************************************
+                                    '*******   Window Look Ahead/Behind Functions   *************
+                                    '
+                                    '**      Called by ShopStatus to determine if there is     **
+                                    '**       more upcoming information and set arrow icon     **
+                                    '**           color and methods appropriately              **
+                                    '************************************************************
 
+Public Function RT1FeatsAhead() As Boolean
+        'This needs to be brought into a seperate function, ShopStatus will need to call that function...
+    With RefJobCell.Offset(rtWinOffset * RT_WIN_SIZE, 1).Offset(0, 2 + (ftWinOffset1 * FT_WIN_SIZE))
+        Debug.Print (.Address)
+        If .Value = "" Then
+            RT1FeatsAhead = True
+        Else
+            RT1FeatsAhead = False
+        End If
+    End With
+End Function
 
-
+Public Function RT2FeatsAhead() As Boolean
+    With RefJobCell.Offset(1 + (rtWinOffset * RT_WIN_SIZE), 1).Offset(0, 2 + (ftWinOffset2 * FT_WIN_SIZE))
+        Debug.Print (.Address)
+        If .Value = "" Then
+            RT2FeatsAhead = True
+        Else
+            RT2FeatsAhead = False
+        End If
+    End With
 End Function
 
 Public Function RoutinesAhead() As Boolean
-
-
-
+    With RefJobCell.Offset((rtWinOffset + 1) * RT_WIN_SIZE, 1)
+        If .Value = "" Then
+            RoutinesAhead = False
+        Else
+            RoutinesAhead = True
+        End If
+    End With
 End Function
 
+    'Look Behinds..
+    'Return 0 = False
+    'Return !0 = True
+
+Public Function RT1FeatsBehind() As Boolean
+    RT1FeatsBehind = ftWinOffset1
+End Function
+
+Public Function RT2FeatsBehind() As Boolean
+    RT2FeatsBehind = ftWinOffset2
+End Function
 
 Public Function RoutinesBehind() As Boolean
-
-
-
+    RoutinesBehind = rtWinOffset
 End Function
+
+
+                                    '************************************************************
+                                    '****************   Worksheet Tests   ***********************
+                                    '************************************************************
+
+
+
+
+
+
+
+
 
 
 
@@ -193,6 +308,8 @@ Private Sub TestLoadFeatures()
     Call LoadJobFeatures(jobCell:=jobCell, jobNum:=jobNum, partNum:=partNum, rev:=rev, faType:=faType)
 End Sub
 
+
+    'Depracted - Doesnt work this way anymore....
 Private Sub TestGetInitFeatures()
     Dim rtColl As Collection
     Dim ftColl As Collection
@@ -203,44 +320,68 @@ Private Sub TestGetInitFeatures()
     Call Clear
     Call GetInitFeatures(jobNum:=jobNum, rtCells:=rtColl, ftCells:=ftColl)
     
-    Call QuickSpitoutTest(rtCells:=rtColl, ftCells:=ftColl)
+    Set rtColl = Nothing
+    Set ftColl = Nothing
     
-    Debug.Print ("here")
-
+    Call GetInitFeatures(jobNum:="SD1531", rtCells:=rtColl, ftCells:=ftColl)
+    
+'    Call QuickSpitoutTest(rtCells:=rtColl, ftCells:=ftColl)
+    
 End Sub
 
+
+    'TODO: Migrate this over to ShopStatus, we will use it to set our features
 Private Sub QuickSpitoutTest(rtCells As Collection, ftCells As Collection)
     Dim indexCell As Range
     Dim i As Integer
     Dim j As Integer
     
     Set indexCell = Range("B10")
+    indexCell.Offset(i * 4, 0).Value = rtCells.Item(i + 1).Value
+    For j = 0 To ftCells.Count - 1
+        If (Application.WorksheetFunction.Floor_Math(j / 14)) <> i Then
+            i = (Application.WorksheetFunction.Floor_Math(j / 14))
+            indexCell.Offset(i * 4, 0).Value = rtCells.Item(i + 1).Value
+        End If
+        indexCell.Offset(i * 4 + (Application.WorksheetFunction.Floor_Math(j / 7) Mod 2) + 1, (j Mod 7) + 1).Value = ftCells.Item(j + 1).Value
+    Next j
     
-    For i = 0 To rtCells.Count - 1
-        indexCell.Offset(i * 4, 0).Value = rtCells.Item(i + 1).Value
-        For j = 1 To ftCells.Count
-            indexCell.Offset(i * 4 + Application.WorksheetFunction.Floor_Math(j / 8) + 1, j Mod 8).Value = ftCells.Item(j).Value
-        Next j
-    
-    Next i
-    
-    
-    
-    
+End Sub
 
+
+Public Sub TestMovingRTWindowDown()
+    Dim rtRange As Range
+    Set rtRange = Range(RefJobCell.Offset(0, 1), RefJobCell.Offset(1, 1))
+    
+    rtWinOffset = rtWinOffset + 1
+    Set rtRange = rtRange.Offset(RT_WIN_SIZE * rtWinOffset, 0)
+    
+    Dim subCell As Range
+    For Each subCell In rtRange
+        Debug.Print (subCell.Value)
+    
+    Next subCell
 
 End Sub
 
 
-Private Sub dumbTest()
-    Dim i As Integer
-    Dim j As Integer
-    
-    
-    
-    Debug.Print (Application.WorksheetFunction.Floor_Math(i / 7))
+                                    '************************************************************
+                                    '***********   Worksheet Helper Functions   *****************
+                                    '************************************************************
 
-    
+Function GetDimension(var As Variant) As Long
+    On Error GoTo Err
+    Dim i As Long
+    Dim tmp As Long
+    i = 0
+    Do While True
+        i = i + 1
+        tmp = UBound(var, i)
+    Loop
+Err:
+    GetDimension = i - 1
+End Function
 
-End Sub
+
+
 
