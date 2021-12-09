@@ -26,14 +26,14 @@ Private Sub Workbook_Open()
     
 End Sub
 
-
-
-Private Sub Events()
+Public Sub Events()
+    Worksheets("ShopStatus").Protect PASSWORD:=config.PASSWORD
     Application.EnableEvents = True
 
 End Sub
 
-Private Sub DisableEvents()
+Public Sub NoEvents()
+    Worksheets("ShopStatus").Unprotect PASSWORD:=config.PASSWORD
     Application.EnableEvents = False
 
 End Sub
@@ -44,37 +44,4 @@ Private Sub printColor()
 '    Debug.Print (RGB(255, 189, 0) & " " & vbCrLf)
 
 End Sub
-
-Sub test()
-    MsgBox ThisWorkbook.path
-
-    'Routine Arrow
-        'Top 201
-        'Left  734.25 (right arrow)
-        'Left  720.75 (left arrow)
-        
-    'Features Arrow
-        'Top  241.5
-        'Left  639  (right arrow)
-        'Left  679.5 (left arrow)
-
-    'Features Arrow 2
-        'Top  315
-        'Left  639  (right arrow)
-        'Left  679.5 (left arrow)
-
-
-End Sub
-
-
-Public Sub testBool()
-
-    If 0 Then
-        Debug.Print ("true")
-    End If
-
-
-End Sub
-
-
 

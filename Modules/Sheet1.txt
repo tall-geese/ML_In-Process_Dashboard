@@ -15,6 +15,8 @@ Dim lineChart As Excel.shape
 Dim barChart As Excel.shape
 Dim tempAddy As String
 
+Dim rtR As Excel.shape, rtL As Excel.shape, ft1L As Excel.shape, ft1R As Excel.shape, ft2L As Excel.shape, ft2R As Excel.shape
+
                                                     '*************************************************************
                                                     '*************************************************************
                                                     '*                  ShopStatus
@@ -40,6 +42,7 @@ Public Sub Cleanup()
     Set lastCellRange = Nothing
     
     Call DeleteImages
+    Call CleanupFeatureView
     
     'TODO There needs to be something for cleaning out the JobView as well
 End Sub
@@ -270,6 +273,11 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
         Dim jobCell As Range
         Set jobCell = Target.Offset(0, GetCol("Job#") - Target.column)
         If jobCell.Value = "" Then GoTo 10
+        
+        Call CleanupFeatureView
+        Call Sheets("JobFeatures").GetInitFeatures(jobNum:=jobCell.Value)
+        Call InitArrows
+        
         Dim rowNum As Integer
         rowNum = Sheets("ShopLoad").GetJobInd(jobCell.Value).row
                                                 
@@ -398,6 +406,160 @@ Private Function GetJobInfoSelection() As Range
     End If
     
 End Function
+
+
+                                        '************************************************************
+                                        '****************   Feature Viewport   **********************
+                                        '************************************************************
+
+Private Sub CleanupFeatureView()
+    With Range("K13:R19")
+        .Value = ""
+        .Font.ColorIndex = 0
+    End With
+    Call DeleteArrows
+    
+End Sub
+
+Private Sub DeleteArrows()
+    On Error Resume Next
+    Dim im As Excel.shape
+    For Each im In Me.Shapes
+        If InStr(im.Name, "Arrow") > 0 Then
+            im.Delete
+            Set im = Nothing
+        End If
+    Next im
+End Sub
+
+Public Sub InitArrows()
+
+    Call DeleteArrows
+
+    Set rtL = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=193, Left:=721.25, Width:=15, Height:=15)
+    Set ft1L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=229.75, Left:=671.5, Width:=15, Height:=15)
+    Set ft2L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=297.25, Left:=671.5, Width:=15, Height:=15)
+    
+    rtL.Name = "RTArrowLeft"
+    ft1L.Name = "FT1ArrowLeft"
+    ft2L.Name = "FT2ArrowLeft"
+    
+    If Sheets("JobFeatures").RoutinesAhead() Then
+        Set rtR = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=193, Left:=736.75, Width:=15, Height:=15)
+        rtR.OnAction = "Sheet5.NextJobRoutines"
+    Else
+        Set rtR = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=193, Left:=736.75, Width:=15, Height:=15)
+    End If
+    
+    If Sheets("JobFeatures").RT1FeatsAhead() Then
+        Set ft1R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=229.75, Left:=687, Width:=15, Height:=15)
+        ft1R.OnAction = "Sheet5.NextRt1Features"
+    Else
+        Set ft1R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=229.75, Left:=687, Width:=15, Height:=15)
+    End If
+    
+    
+    If Sheets("JobFeatures").RT2FeatsAhead() Then
+        Set ft2R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=297.25, Left:=687, Width:=15, Height:=15)
+        ft2R.OnAction = "Sheet5.NextRt2Features"
+    Else
+        Set ft2R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=297.25, Left:=687, Width:=15, Height:=15)
+    End If
+    
+    
+    rtR.Name = "RTArrowRight"
+    ft1R.Name = "FT1ArrowRight"
+    ft2R.Name = "FT2ArrowRight"
+    
+End Sub
+
+
+Public Sub UpdateFT1Arrows()
+    'If the Left Arrow is Gray and there are features behind us, update to black and set the macro
+    If Me.Shapes("FT1ArrowLeft").Fill.ForeColor.RGB = RGB(175, 171, 171) And Sheets("JobFeatures").RT1FeatsBehind() Then
+        Me.Shapes("FT1ArrowLeft").Delete
+        Set ft1L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left.svg", False, True, Top:=229.75, Left:=671.5, Width:=15, Height:=15)
+        ft1L.OnAction = "Sheet5.PrevRT1Features"
+    
+    'Otherwise if the Left Arrow is Black and there aren't any Features behind us, then update to gray, no macro set
+    ElseIf Me.Shapes("FT1ArrowLeft").Fill.ForeColor.RGB = RGB(0, 0, 0) And Not Sheets("JobFeatures").RT1FeatsBehind() Then
+        Me.Shapes("FT1ArrowLeft").Delete
+        Set ft1L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=229.75, Left:=671.5, Width:=15, Height:=15)
+    End If
+    
+    'Do the same thing for the right arrows
+    If Me.Shapes("FT1ArrowRight").Fill.ForeColor.RGB = RGB(175, 171, 171) And Sheets("JobFeatures").RT1FeatsAhead() Then
+        Me.Shapes("FT1ArrowRight").Delete
+        Set ft1R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=229.75, Left:=687, Width:=15, Height:=15)
+        ft1R.OnAction = "Sheet5.NextRt1Features"
+    
+    ElseIf Me.Shapes("FT1ArrowRight").Fill.ForeColor.RGB = RGB(0, 0, 0) And Not Sheets("JobFeatures").RT1FeatsAhead() Then
+        Me.Shapes("FT1ArrowRight").Delete
+        Set ft1R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=229.75, Left:=687, Width:=15, Height:=15)
+    End If
+
+End Sub
+
+
+Public Sub UpdateFT2Arrows()
+    'If the Left Arrow is Gray and there are features behind us, update to black and set the macro
+    If Me.Shapes("FT2ArrowLeft").Fill.ForeColor.RGB = RGB(175, 171, 171) And Sheets("JobFeatures").RT2FeatsBehind() Then
+        Me.Shapes("FT2ArrowLeft").Delete
+        Set ft2L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left.svg", False, True, Top:=297.25, Left:=671.5, Width:=15, Height:=15)
+        ft2L.OnAction = "Sheet5.PrevRT2Features"
+        'Otherwise if the Left Arrow is Black and there aren't any Features behind us, then update to gray, no macro set
+        
+    ElseIf Me.Shapes("FT2ArrowLeft").Fill.ForeColor.RGB = RGB(0, 0, 0) And Not Sheets("JobFeatures").RT2FeatsBehind() Then
+        Me.Shapes("FT2ArrowLeft").Delete
+        Set ft2L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=297.25, Left:=671.5, Width:=15, Height:=15)
+    End If
+    
+    'Do the same thing for the right arrows
+    If Me.Shapes("FT2ArrowRight").Fill.ForeColor.RGB = RGB(175, 171, 171) And Sheets("JobFeatures").RT2FeatsAhead() Then
+        Me.Shapes("FT2ArrowRight").Delete
+        Set ft2R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=297.25, Left:=687, Width:=15, Height:=15)
+        ft2R.OnAction = "Sheet5.NextRT2Features"
+    
+    ElseIf Me.Shapes("FT2ArrowRight").Fill.ForeColor.RGB = RGB(0, 0, 0) And Not Sheets("JobFeatures").RT2FeatsAhead() Then
+        Me.Shapes("FT2ArrowRight").Delete
+        Set ft2R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=297.25, Left:=687, Width:=15, Height:=15)
+    End If
+
+End Sub
+
+
+Public Sub UpdateJobFeatures(rtCells As Collection, ftCells As Collection)
+    Dim startCell As Range
+    Dim i As Integer
+    Dim j As Integer
+    
+    Set startCell = Range("K13")
+    startCell.Offset(i * 4, 0).Value = rtCells.Item(i + 1).Value
+    For j = 0 To ftCells.Count - 1
+        If (Application.WorksheetFunction.Floor_Math(j / 14)) <> i Then
+            i = (Application.WorksheetFunction.Floor_Math(j / 14))
+            startCell.Offset(i * 4, 0).Value = rtCells.Item(i + 1).Value
+        End If
+        With startCell.Offset(i * 4 + (Application.WorksheetFunction.Floor_Math(j / 7) Mod 2) + 1, (j Mod 7) + 1)
+            .Value = ftCells.Item(j + 1).Value
+            .Font.color = ftCells.Item(j + 1).Font.color
+        End With
+    Next j
+    
+End Sub
+
+
+Public Sub testUpdateJobFeatures()
+    Call Sheets("JobFeatures").GetInitFeatures("NV17108")
+End Sub
+
+
+
+
+
+
+
+
 
 
 
@@ -1221,10 +1383,6 @@ Private Function GetOuterLblTop(lblLeft As Double, lblTop As Double, lblWidth As
     End If
     
 End Function
-
-
-
-
 
 
 

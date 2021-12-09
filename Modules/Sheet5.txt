@@ -25,16 +25,16 @@ Public Sub Clear()
 End Sub
 
 
-Public Function GetInitFeatures(jobNum As String, ByRef rtCells As Collection, ByRef ftCells As Collection)
+Public Sub GetInitFeatures(jobNum As String)
     'Need to change this up, we should only be finding and/or setting the jobCell and top level information here
     'Then going onto call RefreshFeatureValues
-
-    If Not (rtCells Is Nothing) Or Not (ftCells Is Nothing) Then Exit Function  'Should be empty
+    
     Dim jobCell As Range
     
         'Reset all of the header values to the default, set the new jobCell here once we find it...
     rtWinOffset = 0
-    ftWinOffset = 0
+    ftWinOffset1 = 0
+    ftWinOffset2 = 0
     RefJob = ""
     RefRoutine = ""
     Set RefJobCell = Nothing
@@ -65,7 +65,7 @@ Public Function GetInitFeatures(jobNum As String, ByRef rtCells As Collection, B
     'TODO: At this point, we want to check if any routines at all were loaded
     If jobCell.Offset(0, 1).Value = "" Then
         'Raise error here, let the calling function delete anything in the view, including the arrows...
-        Exit Function
+        Exit Sub
     End If
     
 'Set the Header Values
@@ -76,29 +76,35 @@ Public Function GetInitFeatures(jobNum As String, ByRef rtCells As Collection, B
 'Call Routine to Collect Features based on Window Index
     Call RefreshShopStatusValues
 
-End Function
+End Sub
 
 
 Private Sub RefreshShopStatusValues()
-    Dim rtCell As Collection
+    Dim rtCells As Collection
     Dim ftCells As Collection
     Set rtCells = New Collection
     Set ftCells = New Collection
     Dim i As Integer
     Dim j As Integer
+    Dim k As Integer
     
         'TODO: The offsetting here needs to take into accoutn the indexed position of the moving windows
         'Also, now we have individual rtFeature Indexed positions....
     For i = 1 To RT_WIN_SIZE
-        rtCells.Add jobCell.Offset(i - 1, 1)
+        rtCells.Add RefJobCell.Offset((i - 1) + (RT_WIN_SIZE * rtWinOffset), 1)
         For j = 1 To FT_WIN_SIZE
-            ftCells.Add jobCell.Offset(i - 1, 1).Offset(0, j)
+            If i = 1 Then
+                k = ftWinOffset1
+            Else
+                k = ftWinOffset2
+            End If
+        
+            ftCells.Add RefJobCell.Offset((i - 1) + (RT_WIN_SIZE * rtWinOffset), 1).Offset(0, j + (FT_WIN_SIZE * k))
         Next j
     Next i
     
                             'Pass in the collection objects
     Call Worksheets("ShopStatus").UpdateJobFeatures(rtCells:=rtCells, ftCells:=ftCells)
-
 
 End Sub
 
@@ -186,36 +192,49 @@ End Sub
                                     '************************************************************
 
 
-Public Function NextJobRoutines() As Boolean
+Public Sub NextJobRoutines()
     rtWinOffset = rtWinOffset + 1
     Call RefreshShopStatusValues
-End Function
+    Call Sheets("ShopStatus").InitArrows
+End Sub
 
-Public Function PrevJobRoutines() As Boolean
+Public Sub PrevJobRoutines()
     rtWinOffset = rtWinOffset - 1
     Call RefreshShopStatusValues
-End Function
+    Call Sheets("ShopStatus").InitArrows
+End Sub
 
-Public Function NextRt1Features()
+Public Sub NextRt1Features()
     ftWinOffset1 = ftWinOffset1 + 1
+    Call ThisWorkbook.NoEvents
     Call RefreshShopStatusValues
-End Function
+    Call Sheets("ShopStatus").UpdateFT1Arrows
+    Call ThisWorkbook.Events
+End Sub
 
-Public Function PrevRt1Features() As Boolean
+Public Sub PrevRt1Features()
     ftWinOffset1 = ftWinOffset1 - 1
+    Call ThisWorkbook.NoEvents
     Call RefreshShopStatusValues
-End Function
+    Call Sheets("ShopStatus").UpdateFT1Arrows
+    Call ThisWorkbook.Events
+End Sub
 
-Public Function NextRt2Features() As Boolean
+Public Sub NextRt2Features()
     ftWinOffset2 = ftWinOffset2 + 1
+    Call ThisWorkbook.NoEvents
     Call RefreshShopStatusValues
-End Function
+    Call Sheets("ShopStatus").UpdateFT2Arrows
+    Call ThisWorkbook.Events
+End Sub
 
-Public Function PrevRt2Features() As Boolean
+Public Sub PrevRt2Features()
     ftWinOffset2 = ftWinOffset2 - 1
+    Call ThisWorkbook.NoEvents
     Call RefreshShopStatusValues
-
-End Function
+    Call Sheets("ShopStatus").UpdateFT2Arrows
+    Call ThisWorkbook.Events
+End Sub
 
 
                                     '************************************************************
@@ -227,30 +246,30 @@ End Function
                                     '************************************************************
 
 Public Function RT1FeatsAhead() As Boolean
-        'This needs to be brought into a seperate function, ShopStatus will need to call that function...
-    With RefJobCell.Offset(rtWinOffset * RT_WIN_SIZE, 1).Offset(0, 2 + (ftWinOffset1 * FT_WIN_SIZE))
+    With RefJobCell.Offset(rtWinOffset * RT_WIN_SIZE, 1).Offset(0, 1 + ((ftWinOffset1 + 1) * FT_WIN_SIZE))
         Debug.Print (.Address)
         If .Value = "" Then
-            RT1FeatsAhead = True
-        Else
             RT1FeatsAhead = False
+        Else
+            RT1FeatsAhead = True
         End If
     End With
 End Function
 
 Public Function RT2FeatsAhead() As Boolean
-    With RefJobCell.Offset(1 + (rtWinOffset * RT_WIN_SIZE), 1).Offset(0, 2 + (ftWinOffset2 * FT_WIN_SIZE))
+    With RefJobCell.Offset(1 + (rtWinOffset * RT_WIN_SIZE), 1).Offset(0, 1 + ((ftWinOffset2 + 1) * FT_WIN_SIZE))
         Debug.Print (.Address)
         If .Value = "" Then
-            RT2FeatsAhead = True
-        Else
             RT2FeatsAhead = False
+        Else
+            RT2FeatsAhead = True
         End If
     End With
 End Function
 
 Public Function RoutinesAhead() As Boolean
     With RefJobCell.Offset((rtWinOffset + 1) * RT_WIN_SIZE, 1)
+        Debug.Print (.Address)
         If .Value = "" Then
             RoutinesAhead = False
         Else
@@ -280,13 +299,29 @@ End Function
                                     '****************   Worksheet Tests   ***********************
                                     '************************************************************
 
+Private Sub TestRTFeatsAhead()
+    Set RefJobCell = Range("A1")
+    rtWinOffset = 1
+    ftWinOffset2 = 0
+    Debug.Print (RT1FeatsAhead)
+End Sub
 
+Private Sub TestRoutinesAhead()
+    Set RefJobCell = Range("A1")
+    rtWinOffset = 2
+    Debug.Print (RoutinesAhead)
+End Sub
 
+Private Sub TestRTFeatsBehind()
+    ftWinOffset2 = 0
+    Debug.Print (RT2FeatsBehind)
+End Sub
 
+Private Sub TestRoutinesBehind()
+    rtWinOffset = 3
+    Debug.Print (RoutinesBehind)
 
-
-
-
+End Sub
 
 
 
@@ -364,6 +399,32 @@ Public Sub TestMovingRTWindowDown()
 
 End Sub
 
+Public Sub ShapeCheck()
+    MsgBox "hello this works"
+
+End Sub
+
+Public Sub arrowTest()
+    Dim rtL As Excel.shape
+    
+    Set rtL = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Left:=720.75, Top:=201, Width:=15, Height:=15)
+    rtL.Name = "ThisName"
+    rtL.OnAction = "Sheet5.ShapeCheck"
+
+End Sub
+
+Public Sub dumbthing()
+    MsgBox Selection.Width
+
+
+End Sub
+
+Public Sub anotherDub()
+    MsgBox Selection.OnAction
+
+
+End Sub
+
 
                                     '************************************************************
                                     '***********   Worksheet Helper Functions   *****************
@@ -381,6 +442,10 @@ Function GetDimension(var As Variant) As Long
 Err:
     GetDimension = i - 1
 End Function
+
+Private Sub ClearImmediate()
+    Application.SendKeys "^g ^a {DEL}"
+End Sub
 
 
 
