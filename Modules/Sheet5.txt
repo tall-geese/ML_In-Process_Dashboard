@@ -194,14 +194,29 @@ End Sub
 
 Public Sub NextJobRoutines()
     rtWinOffset = rtWinOffset + 1
+    ftWinOffset1 = 0
+    ftWinOffset2 = 0
+    Call ThisWorkbook.NoEvents
     Call RefreshShopStatusValues
-    Call Sheets("ShopStatus").InitArrows
+    Call Sheets("ShopStatus").UpdateFT1Arrows
+    Call Sheets("ShopStatus").UpdateFT2Arrows
+    Call Sheets("ShopStatus").UpdateRTArrows
+    Call ThisWorkbook.Events
+    'UpdateRTArrows
+'    Call Sheets("ShopStatus").InitArrows
 End Sub
 
 Public Sub PrevJobRoutines()
     rtWinOffset = rtWinOffset - 1
+    ftWinOffset1 = 0
+    ftWinOffset2 = 0
+    Call ThisWorkbook.NoEvents
     Call RefreshShopStatusValues
-    Call Sheets("ShopStatus").InitArrows
+    Call Sheets("ShopStatus").UpdateFT1Arrows
+    Call Sheets("ShopStatus").UpdateFT2Arrows
+    Call Sheets("ShopStatus").UpdateRTArrows
+    Call ThisWorkbook.Events
+'    Call Sheets("ShopStatus").InitArrows
 End Sub
 
 Public Sub NextRt1Features()

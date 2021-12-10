@@ -120,7 +120,7 @@ Public Sub AddCell(cellName As String)
     lastCellRange.Offset(0, 6).Value = "Desc"
     lastCellRange.Offset(0, 7).Value = "Status"
 
-    lastCellRange.EntireRow.RowHeight = 14
+'    lastCellRange.EntireRow.RowHeight = 14
 
 End Sub
 
@@ -436,34 +436,34 @@ Public Sub InitArrows()
 
     Call DeleteArrows
 
-    Set rtL = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=193, Left:=721.25, Width:=15, Height:=15)
-    Set ft1L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=229.75, Left:=671.5, Width:=15, Height:=15)
-    Set ft2L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=297.25, Left:=671.5, Width:=15, Height:=15)
+    Set rtL = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=202, Left:=721.25, Width:=15, Height:=15)
+    Set ft1L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=240, Left:=671.5, Width:=15, Height:=15)
+    Set ft2L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=312, Left:=671.5, Width:=15, Height:=15)
     
     rtL.Name = "RTArrowLeft"
     ft1L.Name = "FT1ArrowLeft"
     ft2L.Name = "FT2ArrowLeft"
     
     If Sheets("JobFeatures").RoutinesAhead() Then
-        Set rtR = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=193, Left:=736.75, Width:=15, Height:=15)
+        Set rtR = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=202, Left:=736.75, Width:=15, Height:=15)
         rtR.OnAction = "Sheet5.NextJobRoutines"
     Else
-        Set rtR = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=193, Left:=736.75, Width:=15, Height:=15)
+        Set rtR = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=202, Left:=736.75, Width:=15, Height:=15)
     End If
     
     If Sheets("JobFeatures").RT1FeatsAhead() Then
-        Set ft1R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=229.75, Left:=687, Width:=15, Height:=15)
+        Set ft1R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=240, Left:=687, Width:=15, Height:=15)
         ft1R.OnAction = "Sheet5.NextRt1Features"
     Else
-        Set ft1R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=229.75, Left:=687, Width:=15, Height:=15)
+        Set ft1R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=240, Left:=687, Width:=15, Height:=15)
     End If
     
     
     If Sheets("JobFeatures").RT2FeatsAhead() Then
-        Set ft2R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=297.25, Left:=687, Width:=15, Height:=15)
+        Set ft2R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=312, Left:=687, Width:=15, Height:=15)
         ft2R.OnAction = "Sheet5.NextRt2Features"
     Else
-        Set ft2R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=297.25, Left:=687, Width:=15, Height:=15)
+        Set ft2R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=312, Left:=687, Width:=15, Height:=15)
     End If
     
     
@@ -478,24 +478,28 @@ Public Sub UpdateFT1Arrows()
     'If the Left Arrow is Gray and there are features behind us, update to black and set the macro
     If Me.Shapes("FT1ArrowLeft").Fill.ForeColor.RGB = RGB(175, 171, 171) And Sheets("JobFeatures").RT1FeatsBehind() Then
         Me.Shapes("FT1ArrowLeft").Delete
-        Set ft1L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left.svg", False, True, Top:=229.75, Left:=671.5, Width:=15, Height:=15)
+        Set ft1L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left.svg", False, True, Top:=240, Left:=671.5, Width:=15, Height:=15)
+        ft1L.Name = "FT1ArrowLeft"
         ft1L.OnAction = "Sheet5.PrevRT1Features"
     
     'Otherwise if the Left Arrow is Black and there aren't any Features behind us, then update to gray, no macro set
     ElseIf Me.Shapes("FT1ArrowLeft").Fill.ForeColor.RGB = RGB(0, 0, 0) And Not Sheets("JobFeatures").RT1FeatsBehind() Then
         Me.Shapes("FT1ArrowLeft").Delete
-        Set ft1L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=229.75, Left:=671.5, Width:=15, Height:=15)
+        Set ft1L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=240, Left:=671.5, Width:=15, Height:=15)
+        ft1L.Name = "FT1ArrowLeft"
     End If
     
     'Do the same thing for the right arrows
     If Me.Shapes("FT1ArrowRight").Fill.ForeColor.RGB = RGB(175, 171, 171) And Sheets("JobFeatures").RT1FeatsAhead() Then
         Me.Shapes("FT1ArrowRight").Delete
-        Set ft1R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=229.75, Left:=687, Width:=15, Height:=15)
+        Set ft1R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=240, Left:=687, Width:=15, Height:=15)
+        ft1R.Name = "FT1ArrowRight"
         ft1R.OnAction = "Sheet5.NextRt1Features"
     
     ElseIf Me.Shapes("FT1ArrowRight").Fill.ForeColor.RGB = RGB(0, 0, 0) And Not Sheets("JobFeatures").RT1FeatsAhead() Then
         Me.Shapes("FT1ArrowRight").Delete
-        Set ft1R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=229.75, Left:=687, Width:=15, Height:=15)
+        Set ft1R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=240, Left:=687, Width:=15, Height:=15)
+        ft1R.Name = "FT1ArrowRight"
     End If
 
 End Sub
@@ -505,27 +509,63 @@ Public Sub UpdateFT2Arrows()
     'If the Left Arrow is Gray and there are features behind us, update to black and set the macro
     If Me.Shapes("FT2ArrowLeft").Fill.ForeColor.RGB = RGB(175, 171, 171) And Sheets("JobFeatures").RT2FeatsBehind() Then
         Me.Shapes("FT2ArrowLeft").Delete
-        Set ft2L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left.svg", False, True, Top:=297.25, Left:=671.5, Width:=15, Height:=15)
+        Set ft2L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left.svg", False, True, Top:=312, Left:=671.5, Width:=15, Height:=15)
+        ft2L.Name = "FT2ArrowLeft"
         ft2L.OnAction = "Sheet5.PrevRT2Features"
         'Otherwise if the Left Arrow is Black and there aren't any Features behind us, then update to gray, no macro set
         
     ElseIf Me.Shapes("FT2ArrowLeft").Fill.ForeColor.RGB = RGB(0, 0, 0) And Not Sheets("JobFeatures").RT2FeatsBehind() Then
         Me.Shapes("FT2ArrowLeft").Delete
-        Set ft2L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=297.25, Left:=671.5, Width:=15, Height:=15)
+        Set ft2L = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=312, Left:=671.5, Width:=15, Height:=15)
+        ft2L.Name = "FT2ArrowLeft"
     End If
     
     'Do the same thing for the right arrows
     If Me.Shapes("FT2ArrowRight").Fill.ForeColor.RGB = RGB(175, 171, 171) And Sheets("JobFeatures").RT2FeatsAhead() Then
         Me.Shapes("FT2ArrowRight").Delete
-        Set ft2R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=297.25, Left:=687, Width:=15, Height:=15)
+        Set ft2R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=312, Left:=687, Width:=15, Height:=15)
+        ft2R.Name = "FT2ArrowRight"
         ft2R.OnAction = "Sheet5.NextRT2Features"
     
     ElseIf Me.Shapes("FT2ArrowRight").Fill.ForeColor.RGB = RGB(0, 0, 0) And Not Sheets("JobFeatures").RT2FeatsAhead() Then
         Me.Shapes("FT2ArrowRight").Delete
-        Set ft2R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=297.25, Left:=687, Width:=15, Height:=15)
+        Set ft2R = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=312, Left:=687, Width:=15, Height:=15)
+        ft2R.Name = "FT2ArrowRight"
     End If
 
 End Sub
+
+Public Sub UpdateRTArrows()
+    'If the left arrow is gray and there are features behind us, update to black and set the macro
+    If Me.Shapes("RTArrowLeft").Fill.ForeColor.RGB = RGB(175, 171, 171) And Sheets("JobFeatures").RoutinesBehind() Then
+        Me.Shapes("RTArrowLeft").Delete
+        Set rtL = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left.svg", False, True, Top:=202, Left:=721.25, Width:=15, Height:=15)
+        rtL.Name = "RTArrowLeft"
+        rtL.OnAction = "Sheet5.PrevJobRoutines"
+
+    'Otherwise if the arrow is black and there arent any routines behind, set it to gray
+    ElseIf Me.Shapes("RTArrowLeft").Fill.ForeColor.RGB = RGB(0, 0, 0) And Not Sheets("JobFeatures").RoutinesBehind() Then
+        Me.Shapes("RTArrowLeft").Delete
+        Set rtL = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-left_gray.svg", False, True, Top:=202, Left:=721.25, Width:=15, Height:=15)
+        rtL.Name = "RTArrowLeft"
+    End If
+
+    'Same Process, but for the Right Arrow this time
+    If Me.Shapes("RTArrowRight").Fill.ForeColor.RGB = RGB(175, 171, 171) And Sheets("JobFeatures").RoutinesAhead() Then
+        Me.Shapes("RTArrowRight").Delete
+        Set rtR = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right.svg", False, True, Top:=202, Left:=736.75, Width:=15, Height:=15)
+        rtR.Name = "RTArrowRight"
+        rtR.OnAction = "Sheet5.NextJobRoutines"
+        
+    ElseIf Me.Shapes("RTArrowRight").Fill.ForeColor.RGB = RGB(0, 0, 0) And Not Sheets("JobFeatures").RoutinesAhead() Then
+        Me.Shapes("RTArrowRight").Delete
+        Set rtR = Shapes.AddPicture(ThisWorkbook.path & "\static\img\arrow-right_gray.svg", False, True, Top:=202, Left:=736.75, Width:=15, Height:=15)
+        rtR.Name = "RTArrowRight"
+    End If
+End Sub
+
+
+
 
 
 Public Sub UpdateJobFeatures(rtCells As Collection, ftCells As Collection)
