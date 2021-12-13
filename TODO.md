@@ -7,6 +7,7 @@
 4. Job ViewPort should be moved down as the inspector is selecting a cell they need to scroll down for
 5. Can the charts be more animated by simply switching the ranges if they exist already??
    1. Run a test on this in another boook
+6. If the user chooses not to refresh the shop load data, we will still need to clear the routine cells and arrows, since the arrow objects have no reference
 
 ### General
 1. Need to add error handling to called functions and routines, if nothing else then to let us know where errors occurred, save some time on debugging.

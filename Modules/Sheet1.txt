@@ -13,6 +13,8 @@ Dim lastCellRange As Range
 Dim pieChart As Excel.shape
 Dim lineChart As Excel.shape
 Dim barChart As Excel.shape
+Dim winLossChart As Excel.shape
+Dim controlChart As Excel.shape
 Dim tempAddy As String
 
 Dim rtR As Excel.shape, rtL As Excel.shape, ft1L As Excel.shape, ft1R As Excel.shape, ft2L As Excel.shape, ft2R As Excel.shape
@@ -63,7 +65,8 @@ Public Sub DeleteImages()
     Set lineChart = Nothing
 End Sub
 
-Private Sub DestroyCharts(Optional destroyPie As Boolean, Optional destroyLine As Boolean, Optional destroyBar As Boolean)
+Private Sub DestroyCharts(Optional destroyPie As Boolean, Optional destroyLine As Boolean, Optional destroyBar As Boolean, _
+                                Optional destroyControl As Boolean, Optional destroyWinLoss As Boolean)
     On Error Resume Next
     If destroyPie = True Then
         Me.Shapes("Doughnut").Delete
@@ -77,6 +80,15 @@ Private Sub DestroyCharts(Optional destroyPie As Boolean, Optional destroyLine A
         Me.Shapes("Bar").Delete
         Set barChart = Nothing
     End If
+    If destroyControl = True Then
+        Me.Shapes("Control").Delete
+        Set controlChart = Nothing
+    End If
+    If destroyWinLoss = True Then
+        Me.Shapes("WinLoss").Delete
+        Set winLossChart = Nothing
+    End If
+    
     
 End Sub
 
@@ -222,14 +234,14 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
     
 'Job Viewport Selected
     If Not (Application.Intersect(Range("K2:K8"), Target) Is Nothing) Then
-            'Reset Arrows
-        Range("J2:J8").Font.color = RGB(208, 206, 206)
-        Target.Offset(0, -1).Font.color = RGB(0, 0, 0)
+    
         
-        Range("K2:K8").Font.color = RGB(150, 150, 150)
+            'Reset Arrows / Color
+        Call ResetJobViewPort
+        Call ResetFeatureViewPort
+    
+        Target.Offset(0, -1).Font.color = RGB(0, 0, 0)
         Target.Font.color = RGB(0, 0, 0)
-            'Reset Cell Color
-        Application.Union(Range("K2:N2"), Range("K4:N4"), Range("K6:N6"), Range("K8:N8")).Interior.color = RGB(205, 242, 255)
         Range(Target.Address & ":N" & Target.row).Interior.color = RGB(101, 215, 255)
         
         Select Case Target.Address
@@ -246,6 +258,43 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
             Case Else
                 'Doesn't make sense
         End Select
+        
+'Feature Viewport Selected
+    ElseIf Not (Application.Intersect(Range("L14:R19"), Target) Is Nothing) Then
+        If Target.Value = "" Then GoTo 10
+    
+        'Color Resets
+        Call ResetJobViewPort
+        Call ResetFeatureViewPort
+        
+        Target.Interior.color = RGB(101, 215, 255)
+        
+GenFeature:
+
+        Dim rtName As String
+        Dim rt1Cell As Range
+        Dim rt2Cell As Range
+        
+        Set rt1Cell = Range("K13")
+        Set rt2Cell = Range("K17")
+
+        If Not (Application.Intersect(Range("L14:R15"), Target) Is Nothing) Then
+            rtName = Target.Offset(rt1Cell.row - Target.row, rt1Cell.column - Target.column).Value
+        ElseIf Not (Application.Intersect(Range("L18:R19"), Target) Is Nothing) Then
+            rtName = Target.Offset(rt2Cell.row - Target.row, rt2Cell.column - Target.column).Value
+        Else
+            'Shouldnt happen...
+            GoTo 10
+        End If
+        
+            'If its an attribute feature, create the win/loss chart
+        If Target.Font.color = RGB(102, 46, 155) Then
+            Call CreateFeatureWinLossChart(routineName:=rtName, featureName:=Target.Value)
+            'Otherwise create the control chart
+        Else
+            Call CreateFeatureControlChart(routineName:=rtName, featureName:=Target.Value)
+        End If
+        
         
 'Machine Rows Selected
     Else  'If user selected a new job Row, these are the only other unprotected cells
@@ -275,6 +324,7 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
         If jobCell.Value = "" Then GoTo 10
         
         Call CleanupFeatureView
+        Call DestroyCharts(destroyControl:=True, destroyWinLoss:=True)
         Call Sheets("JobFeatures").GetInitFeatures(jobNum:=jobCell.Value)
         Call InitArrows
         
@@ -290,6 +340,19 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
                 'If this function returned nothing then Hours Remaining will have been selected by default
         Dim infoRange As Range
         Set infoRange = GetJobInfoSelection()
+        If infoRange Is Nothing Then
+            Set infoRange = GetFeatureSelection()
+            If Not infoRange Is Nothing Then
+                Set Target = infoRange
+                GoTo GenFeature
+            Else
+                'call the cleanups and goto the end
+                Call ResetJobViewPort
+                Call ResetFeatureViewPort
+                GoTo 10
+            End If
+            
+        End If
         
         Select Case infoRange.Address
             Case "$K$2"  'Setup Info
@@ -319,7 +382,7 @@ Private Sub Worksheet_SelectionChange(ByVal Target As Range)
     
 selectionErr:
     If Err.Number <> vbObjectError + 1000 Then  'TODO, no reason to special error handle here
-        Call DestroyCharts(destroyPie:=True, destroyLine:=True, destroyBar:=True)
+        Call DestroyCharts(destroyPie:=True, destroyLine:=True, destroyBar:=True, destroyControl:=True, destroyWinLoss:=True)
         'MsgBox Err.Number & vbCrLf & Err.Description
     End If
     GoTo 10
@@ -399,12 +462,20 @@ Private Function GetJobInfoSelection() As Range
         End If
     Next subCell
     
-    'If we didnt have anything for JobInfo selected already, we should select the hours remaining and let the event callback handle it
-        'from there. Should ultimately end up calling the same function
-    If GetJobInfoSelection Is Nothing Then
-            Range("K8").Select
-    End If
+End Function
+'Called by _SelectionChange
+    'Find out which feature is currently selected, and if it is a valid selection then return the cell
+Private Function GetFeatureSelection() As Range
+    Dim info As Range
+    Set info = Range("L14:R19")
+    Dim subCell As Range
     
+    For Each subCell In info
+        If subCell.Interior.color = RGB(101, 215, 255) And subCell.Value <> "" Then
+            Set GetFeatureSelection = subCell
+        End If
+    Next subCell
+        
 End Function
 
 
@@ -589,12 +660,45 @@ Public Sub UpdateJobFeatures(rtCells As Collection, ftCells As Collection)
 End Sub
 
 
-Public Sub testUpdateJobFeatures()
-    Call Sheets("JobFeatures").GetInitFeatures("NV17108")
+Public Sub UpdateSelectedFeature()
+    Dim featureRange As Range
+    Dim featureCell As Range
+    Set featureRange = Range("L14:R19")
+
+    For Each featureCell In featureRange
+        If featureCell.Interior.color = RGB(101, 215, 255) Then
+            If featureCell.Value = "" Then
+                'If a highlighted cell has no value anymore, then reset the highlighting and move to the jobCell
+                featureCell.Interior.ColorIndex = 0
+                GetActiveJob().Select
+                Call DestroyCharts(destroyControl:=True, destroyWinLoss:=True)
+                Exit Sub
+            End If
+            
+            Dim rt1Cell As Range
+            Dim rt2Cell As Range
+            Set rt1Cell = Range("K13")
+            Set rt2Cell = Range("K17")
+            
+            Dim rtName As String
+            If Not (Application.Intersect(Range("L14:R15"), featureCell) Is Nothing) Then
+                rtName = featureCell.Offset(rt1Cell.row - featureCell.row, rt1Cell.column - featureCell.column).Value
+            ElseIf Not (Application.Intersect(Range("L18:R19"), featureCell) Is Nothing) Then
+                rtName = featureCell.Offset(rt2Cell.row - featureCell.row, rt2Cell.column - featureCell.column).Value
+            Else
+            End If
+            
+            'if the font is purple, create the win/loss chart
+            If featureCell.Font.color = RGB(102, 46, 155) Then
+                Call CreateFeatureWinLossChart(routineName:=rtName, featureName:=featureCell.Value)
+            'otherwise create the contorl chart
+            Else
+                Call CreateFeatureControlChart(routineName:=rtName, featureName:=featureCell.Value)
+            End If
+        End If
+    Next featureCell
+
 End Sub
-
-
-
 
 
 
@@ -645,7 +749,7 @@ Private Sub CreateSetupDoughnut(Optional jobCell As Range)
     Yvals(1, 1) = 1 - Yvals(1, 2)
     
     
-    Call DestroyCharts(destroyPie:=True, destroyLine:=True, destroyBar:=True)
+    Call DestroyCharts(destroyPie:=True, destroyLine:=True, destroyBar:=True, destroyControl:=True, destroyWinLoss:=True)
     Call CreateDoughnutChart(Xrange:=Xvals, Yrange:=Yvals, colors:=colors)
 
     lastActiveCell.Activate
@@ -714,7 +818,7 @@ Private Sub CreateInspDoughnut(Optional jobCell As Range)
     
 NoData:
 
-    Call DestroyCharts(destroyPie:=True, destroyLine:=True)
+    Call DestroyCharts(destroyPie:=True, destroyLine:=True, destroyControl:=True, destroyWinLoss:=True)
     Call CreateDoughnutChart(Xrange:=Xvals, Yrange:=Yvals, colors:=fmtColors, dispValues:=True)
     
     lastActiveCell.Activate
@@ -784,7 +888,7 @@ Private Sub CreateLaborQtyDoughnut(Optional jobCell As Range)
     
 NoData:
 
-    Call DestroyCharts(destroyPie:=True, destroyLine:=True, destroyBar:=True)
+    Call DestroyCharts(destroyPie:=True, destroyLine:=True, destroyBar:=True, destroyControl:=True, destroyWinLoss:=True)
     Call CreateDoughnutChart(Xrange:=Xvals, Yrange:=Yvals, colors:=colors, dispValues:=True)
     
     lastActiveCell.Activate
@@ -932,7 +1036,7 @@ Private Sub CreateInspBarChart(Optional jobCell As Range)
     
 NoInfo:
     
-    Call DestroyCharts(destroyLine:=True, destroyBar:=True)
+    Call DestroyCharts(destroyLine:=True, destroyBar:=True, destroyControl:=True, destroyWinLoss:=True)
     CreateBarChart Xrange:=rtRange, Yrange:=Yrange, empRange:=empRange, colorRange:=colorRange, _
                     shiftsWorked:=CInt(shiftsWorked), finalAQL:=CInt(finalAQL), currentAQL:=CInt(currentAQL)
     
@@ -980,7 +1084,7 @@ Private Sub CreateLaborQtyTimeSeries(Optional jobCell As Range)
     Set empRange = Xrange.Offset(0, 2)
     
 NoInfo:
-    Call DestroyCharts(destroyLine:=True, destroyBar:=True)
+    Call DestroyCharts(destroyLine:=True, destroyBar:=True, destroyControl:=True, destroyWinLoss:=True)
     Call CreateTimeSeriesChart(Xrange:=Xrange, Yrange:=Yrange, empRange:=empRange, colors:=colors)
 
     lastActiveCell.Activate
@@ -1003,6 +1107,142 @@ CreateLaborQtyTimeSeriesErr:
 End Sub
 
 
+
+                                                '-----------------   Feature Charts   ----------------------
+
+Public Sub CreateFeatureWinLossChart(routineName As String, featureName As String, Optional jobNum As String)
+    If jobNum = "" Then
+        jobNum = GetActiveJob().Value
+    End If
+    
+    On Error GoTo CallWinLossErr
+
+    Dim results() As Variant
+    results = DBconnections.GetAttrResults(jobNum:=jobNum, routineName:=routineName, featureName:=featureName)
+    If (Not results) = -1 Then GoTo 10
+10
+
+
+    'TODO: Check what the size and shape of the array is here, we may need to check for 1-D array vs 2-D
+    Call DestroyCharts(destroyLine:=True, destroyBar:=True, destroyControl:=True, destroyWinLoss:=True)
+    Call CreateWinLossChart(values:=results, featureName:=featureName)
+    
+    
+    Exit Sub
+    
+CallWinLossErr:
+    MsgBox "Error occured in ShopStatus.CreateFeatureWinLossChart()" & vbCrLf & Err.Description, vbCritical
+    Err.Raise Number:=Err.Number, Description:=Err.Description
+
+End Sub
+
+
+
+Public Sub CreateFeatureControlChart(routineName As String, featureName As String, Optional jobNum As String)
+    If jobNum = "" Then
+        jobNum = GetActiveJob().Value
+    End If
+    
+    On Error GoTo CallControlChart
+    
+    Dim results() As Variant
+    Dim limits() As Variant
+    Dim Ltol As Double
+    Dim Utol As Double
+    Dim UtolMore As Double
+    Dim UtolLess As Double
+    Dim LtolLess As Double
+    Dim LtolMore As Double
+    
+    Dim UtolArr() As Variant
+    Dim LtolArr() As Variant
+    Dim UtolMoreArr() As Variant
+    Dim UtolLessArr() As Variant
+    Dim LtolMoreArr() As Variant
+    Dim Xvals() As Variant
+    
+    results = DBconnections.GetVariableResults(jobNum:=jobNum, routineName:=routineName, featureName:=featureName)
+    If (Not results) = -1 Then GoTo 10  'Set the NO DATA graph
+    
+    limits = DBconnections.GetVariableLimits(jobNum:=jobNum, routineName:=routineName, featureName:=featureName)
+    
+    
+    results = Application.WorksheetFunction.Transpose(Application.WorksheetFunction.Transpose(results))
+    
+    Ltol = limits(0, 0)
+    Utol = limits(1, 0)
+    
+    Dim tolRange As Double
+    tolRange = Utol - Ltol
+    
+    UtolMore = Utol + (tolRange * 0.15)
+    If Ltol = 0 Then
+        UtolLess = Utol - (tolRange * 0.3)
+    
+    Else
+        UtolLess = Utol - (tolRange * 0.15)
+        LtolMore = Ltol + (tolRange * 0.15)
+        LtolLess = Ltol - (tolRange * 0.15)
+    End If
+    
+    
+    ReDim Preserve UtolArr(1 To UBound(results))
+    ReDim Preserve UtolLessArr(1 To UBound(results))
+    ReDim Preserve UtolMoreArr(1 To UBound(results))
+    
+    If Ltol <> 0 Then
+        ReDim Preserve LtolMoreArr(1 To UBound(results))
+        ReDim Preserve LtolArr(1 To UBound(results))
+    End If
+    
+    ReDim Preserve Xvals(1 To UBound(results))
+    
+    Dim i As Integer
+    For i = 1 To UBound(results)
+        UtolArr(i) = Utol
+        UtolLessArr(i) = UtolLess
+        UtolMoreArr(i) = UtolMore
+        
+        If Ltol <> 0 Then
+            LtolMoreArr(i) = LtolMore
+            LtolArr(i) = Ltol
+        End If
+        
+        Xvals(i) = i
+    Next i
+    
+10
+    Call DestroyCharts(destroyLine:=True, destroyBar:=True, destroyControl:=True, destroyWinLoss:=True)
+    Call CreateControlChart(results:=results, RedTop:=UtolMoreArr, YellowTop:=UtolArr, GreenTop:=UtolLessArr, _
+                                YellowBottom:=LtolMoreArr, RedBottom:=LtolArr, AxesEnd:=LtolLess, Xvals:=Xvals, featureName:=featureName)
+                                
+    Exit Sub
+
+CallControlChart:
+    MsgBox "Error occured in ShopStatus.CreateFeatureControlChart()" & vbCrLf & Err.Description, vbCritical
+    Err.Raise Number:=Err.Number, Description:=Err.Description
+End Sub
+
+'Public Function TestAbove()
+'    Dim job As String
+'    Dim routine As String
+'    Dim feature As String
+'
+'
+'    On Error GoTo testErr
+'    Call ThisWorkbook.NoEvents
+'
+'    job = "NV16729"
+'    routine = "1907024_A_IP_BENCH"
+'    feature = "P_007_00"
+'
+'    Call CreateFeatureControlChart(routine, feature, job)
+'
+'
+'testErr:
+'    ThisWorkbook.NoEvents
+'
+'End Function
 
 
 
@@ -1301,6 +1541,138 @@ contEmp:
 End Sub
 
 
+Private Sub CreateWinLossChart(values() As Variant, featureName As String)
+
+
+    Set winLossChart = Me.Shapes.AddChart2(-1, xlColumnClustered, Left:=Range("J1").Left + 15, Top:=ActiveWindow.VisibleRange.Top + 360, Height:=170, Width:=415)
+    winLossChart.Name = "WinLoss"
+    
+    With winLossChart.Chart
+        .SeriesCollection(1).Delete
+        .SeriesCollection.NewSeries
+        .SeriesCollection(1).values = values
+        .Axes(xlValue).MajorGridlines.Delete
+        .Axes(xlValue).Delete
+        .Axes(xlValue).MinimumScale = -1.5
+        .Axes(xlValue).MaximumScale = 1.5
+        
+        .SetElement (msoElementChartTitleAboveChart)
+        .ChartTitle.Text = featureName
+        
+'        .ChartTitle.Caption = "Hello There"
+        'Need to set the Yrange to a deliberate  +1 / -1
+        
+        .SeriesCollection(1).ApplyDataLabels
+'        .SeriesCollection(1).DataLabels.Posistion = xlLabelPositionAbove
+        
+        Dim i As Integer
+        
+        For i = 0 To UBound(values, 2)   'TODO: test, this prob wont work for the 1-D array
+            If values(0, i) = -1 Then
+                .SeriesCollection(1).Points(i + 1).Format.Fill.ForeColor.RGB = RGB(255, 0, 0)
+                .SeriesCollection(1).DataLabels(i + 1).Text = "F"
+            Else
+                .SeriesCollection(1).Points(i + 1).Format.Fill.ForeColor.RGB = RGB(0, 176, 80)
+                .SeriesCollection(1).DataLabels(i + 1).Text = "P"
+            End If
+        
+        Next i
+    End With
+    
+    
+    
+    
+
+'    With barChart.Chart.SeriesCollection(i - 1)
+'        .Format.Fill.Visible = msoFalse
+'        .ApplyDataLabels
+'        .DataLabels.Position = xlLabelPositionInsideBase
+'        .DataLabels.Format.TextFrame2.TextRange.Font.Size = 8
+    
+End Sub
+
+
+Private Sub CreateControlChart(results() As Variant, RedTop() As Variant, YellowTop() As Variant, GreenTop() As Variant, _
+                                YellowBottom() As Variant, RedBottom() As Variant, AxesEnd As Double, Xvals() As Variant, featureName As String)
+                                
+                                
+    Set controlChart = Me.Shapes.AddChart2(-1, xlLine, Left:=Range("J1").Left + 15, Top:=ActiveWindow.VisibleRange.Top + 360, Height:=170, Width:=415)
+    controlChart.Name = "Control"
+    
+    
+    If (Not results) = -1 Then
+        controlChart.Chart.SeriesCollection(1).values = vbEmpty
+        controlChart.Chart.SeriesCollection(1).XValues = vbEmpty
+        controlChart.Chart.ChartTitle.Text = "NO DATA"
+        
+        Exit Sub
+    End If
+    
+    controlChart.Chart.SeriesCollection(1).Delete
+    
+    'TODO: what to do in the event of no-data, or a single result
+    
+    Dim i As Integer
+    For i = 1 To 6
+        
+        controlChart.Chart.SeriesCollection.NewSeries
+        If i = 1 Then
+            With controlChart.Chart.SeriesCollection(i)
+                .values = results
+                .XValues = Xvals
+                .Format.Fill.ForeColor.RGB = RGB(0, 32, 96)
+                .MarkerStyle = 1
+                .MarkerSize = 5
+                .Format.Line.Weight = 1
+            End With
+            
+
+        Else
+            With controlChart.Chart.SeriesCollection(i)
+                .ChartType = xlArea
+                Select Case i
+                    Case 2
+                        .values = RedTop
+                        .Format.Fill.ForeColor.RGB = RGB(255, 80, 80)
+                    Case 3
+                        .values = YellowTop
+                        .Format.Fill.ForeColor.RGB = RGB(255, 255, 102)
+                    
+                    Case 4
+                        .values = GreenTop
+                        .Format.Fill.ForeColor.RGB = RGB(102, 255, 153)
+                    
+                    Case 5
+                        If AxesEnd = 0 Then GoTo 10
+                        .values = YellowBottom
+                        .Format.Fill.ForeColor.RGB = RGB(255, 255, 102)
+                    
+                    Case 6
+                        If AxesEnd = 0 Then GoTo 10
+                        .values = RedBottom
+                        .Format.Fill.ForeColor.RGB = RGB(255, 80, 80)
+                End Select
+10
+            End With
+        End If
+    
+    Next i
+    
+    With controlChart.Chart
+        .SetElement (msoElementChartTitleAboveChart)
+        .ChartTitle.Text = featureName
+        .ChartTitle.Format.TextFrame2.TextRange.Font.Size = 10
+        .Axes(xlValue).MinimumScale = AxesEnd
+        .Axes(xlValue).MaximumScale = RedTop(1)
+        .Axes(xlValue).Delete
+        .Axes(xlValue).MajorGridlines.Delete
+    End With
+
+
+
+End Sub
+
+
 
                                     '************************************************************
                                     '***********   Worksheet Helper Functions   *****************
@@ -1425,7 +1797,17 @@ Private Function GetOuterLblTop(lblLeft As Double, lblTop As Double, lblWidth As
 End Function
 
 
+Private Sub ResetJobViewPort()
+    Application.Union(Range("K2:N2"), Range("K4:N4"), Range("K6:N6"), Range("K8:N8")).Interior.color = RGB(205, 242, 255)
+    Range("J2:J8").Font.color = RGB(208, 206, 206)
+    Range("K2:K8").Font.color = RGB(150, 150, 150)
+End Sub
 
+
+Private Sub ResetFeatureViewPort()
+    Range("L14:R19").Interior.ColorIndex = 0
+
+End Sub
 
 
 

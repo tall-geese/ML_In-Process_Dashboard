@@ -201,6 +201,7 @@ Public Sub NextJobRoutines()
     Call Sheets("ShopStatus").UpdateFT1Arrows
     Call Sheets("ShopStatus").UpdateFT2Arrows
     Call Sheets("ShopStatus").UpdateRTArrows
+    Call Sheets("ShopStatus").UpdateSelectedFeature
     Call ThisWorkbook.Events
     'UpdateRTArrows
 '    Call Sheets("ShopStatus").InitArrows
@@ -215,6 +216,7 @@ Public Sub PrevJobRoutines()
     Call Sheets("ShopStatus").UpdateFT1Arrows
     Call Sheets("ShopStatus").UpdateFT2Arrows
     Call Sheets("ShopStatus").UpdateRTArrows
+    Call Sheets("ShopStatus").UpdateSelectedFeature
     Call ThisWorkbook.Events
 '    Call Sheets("ShopStatus").InitArrows
 End Sub
@@ -224,6 +226,7 @@ Public Sub NextRt1Features()
     Call ThisWorkbook.NoEvents
     Call RefreshShopStatusValues
     Call Sheets("ShopStatus").UpdateFT1Arrows
+    Call Sheets("ShopStatus").UpdateSelectedFeature
     Call ThisWorkbook.Events
 End Sub
 
@@ -232,6 +235,7 @@ Public Sub PrevRt1Features()
     Call ThisWorkbook.NoEvents
     Call RefreshShopStatusValues
     Call Sheets("ShopStatus").UpdateFT1Arrows
+    Call Sheets("ShopStatus").UpdateSelectedFeature
     Call ThisWorkbook.Events
 End Sub
 
@@ -240,6 +244,7 @@ Public Sub NextRt2Features()
     Call ThisWorkbook.NoEvents
     Call RefreshShopStatusValues
     Call Sheets("ShopStatus").UpdateFT2Arrows
+    Call Sheets("ShopStatus").UpdateSelectedFeature
     Call ThisWorkbook.Events
 End Sub
 
@@ -248,6 +253,7 @@ Public Sub PrevRt2Features()
     Call ThisWorkbook.NoEvents
     Call RefreshShopStatusValues
     Call Sheets("ShopStatus").UpdateFT2Arrows
+    Call Sheets("ShopStatus").UpdateSelectedFeature
     Call ThisWorkbook.Events
 End Sub
 
@@ -262,7 +268,7 @@ End Sub
 
 Public Function RT1FeatsAhead() As Boolean
     With RefJobCell.Offset(rtWinOffset * RT_WIN_SIZE, 1).Offset(0, 1 + ((ftWinOffset1 + 1) * FT_WIN_SIZE))
-        Debug.Print (.Address)
+'        Debug.Print (.Address)
         If .Value = "" Then
             RT1FeatsAhead = False
         Else
@@ -273,7 +279,7 @@ End Function
 
 Public Function RT2FeatsAhead() As Boolean
     With RefJobCell.Offset(1 + (rtWinOffset * RT_WIN_SIZE), 1).Offset(0, 1 + ((ftWinOffset2 + 1) * FT_WIN_SIZE))
-        Debug.Print (.Address)
+'        Debug.Print (.Address)
         If .Value = "" Then
             RT2FeatsAhead = False
         Else
@@ -284,7 +290,7 @@ End Function
 
 Public Function RoutinesAhead() As Boolean
     With RefJobCell.Offset((rtWinOffset + 1) * RT_WIN_SIZE, 1)
-        Debug.Print (.Address)
+'        Debug.Print (.Address)
         If .Value = "" Then
             RoutinesAhead = False
         Else

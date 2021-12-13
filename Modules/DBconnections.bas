@@ -331,6 +331,86 @@ QueryError:
     
 End Function
 
+Public Function GetAttrResults(jobNum As String, routineName As String, featureName As String) As Variant()
+    Set fso = New FileSystemObject
+    Dim query As String
+    Dim params() As Variant
+    
+    query = fso.OpenTextFile(config.QUERY_PATH & "GetAttrResults.sql", ForReading).ReadAll()
+    params = Array("r.RunName," & jobNum, "rt.RoutineName," & routineName, "f.FeatureName," & featureName)
+    
+    On Error GoTo RtFeaturesErr
+    Call SQLQuery(queryString:=query, conn_enum:=Connections.ML, params:=params)
+    
+    GetAttrResults = ResultRecordSet.GetRows()
+    
+noResults:
+    Exit Function
+    
+RtFeaturesErr::
+    If Err.Number = vbObjectError + 2000 Then
+        Resume noResults
+    Else
+        MsgBox "Func: GetAttrResults() Failed" & vbCrLf & partNum & "_" & rev & vbCrLf & faRoutine & vbCrLf & vbCrLf & Err.Description
+    End If
+
+
+End Function
+
+Public Function GetVariableResults(jobNum As String, routineName As String, featureName As String) As Variant()
+    Set fso = New FileSystemObject
+    Dim query As String
+    Dim params() As Variant
+    
+    query = fso.OpenTextFile(config.QUERY_PATH & "GetVariableResults.sql", ForReading).ReadAll()
+    params = Array("r.RunName," & jobNum, "rt.RoutineName," & routineName, "f.FeatureName," & featureName)
+    
+    On Error GoTo RtFeaturesErr
+    Call SQLQuery(queryString:=query, conn_enum:=Connections.ML, params:=params)
+    
+    GetVariableResults = ResultRecordSet.GetRows()
+    
+noResults:
+    Exit Function
+    
+RtFeaturesErr::
+    If Err.Number = vbObjectError + 2000 Then
+        Resume noResults
+    Else
+        MsgBox "Func: GetVariableResults() Failed" & vbCrLf & partNum & "_" & rev & vbCrLf & faRoutine & vbCrLf & vbCrLf & Err.Description
+    End If
+
+
+End Function
+
+
+Public Function GetVariableLimits(jobNum As String, routineName As String, featureName As String) As Variant()
+    Set fso = New FileSystemObject
+    Dim query As String
+    Dim params() As Variant
+    
+    query = fso.OpenTextFile(config.QUERY_PATH & "GetVariableLimits.sql", ForReading).ReadAll()
+    params = Array("r.RunName," & jobNum, "rt.RoutineName," & routineName, "f.FeatureName," & featureName)
+    
+    On Error GoTo RtFeaturesErr
+    Call SQLQuery(queryString:=query, conn_enum:=Connections.ML, params:=params)
+    
+    GetVariableLimits = ResultRecordSet.GetRows()
+    
+noResults:
+    Exit Function
+    
+RtFeaturesErr::
+    If Err.Number = vbObjectError + 2000 Then
+        Resume noResults
+    Else
+        MsgBox "Func: GetVariableLimits() Failed" & vbCrLf & partNum & "_" & rev & vbCrLf & faRoutine & vbCrLf & vbCrLf & Err.Description
+    End If
+
+
+End Function
+
+
 
 Private Function PartMLReady(partNum As String, revNum As String) As Variant
     Set fso = New FileSystemObject
