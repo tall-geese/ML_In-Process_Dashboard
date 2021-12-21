@@ -8,6 +8,8 @@
 5. Can the charts be more animated by simply switching the ranges if they exist already??
    1. Run a test on this in another boook
 6. If the user chooses not to refresh the shop load data, we will still need to clear the routine cells and arrows, since the arrow objects have no reference
+7. When calculating the AQL for a job, need to make sure we are taking the maximum between the two of ProdQty and RunQty. 
+   1. Also the Formula for the *Current AQL* should take into account if the Prod Qty is higher, then it doenst make sense to do a proportional value anymore.
 
 ### General
 1. Need to add error handling to called functions and routines, if nothing else then to let us know where errors occurred, save some time on debugging.

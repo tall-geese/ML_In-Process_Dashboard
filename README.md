@@ -9,5 +9,6 @@ Excel dashboard to track various metrics about machines actively running on Meas
     5. Win/Loss chart for attribute type (Pass / Fail) features over time.
     6. Control chart for variable type features.
 
-
-<img src='vid_example.gif' width='80%' style='margin: 0 auto;display: block;'/>
+![](\static\img\README_assets\README_vid.gif)
+<!-- 
+<img src='vid_example.gif' width='80%' style='margin: 0 auto;display: block;'/> -->
