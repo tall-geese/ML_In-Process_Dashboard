@@ -8,6 +8,7 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
 
+
 Private Sub Workbook_Open()
     'PopulateShopLoad
 '    Call Sheets("ShopStatus").DestroyCharts
@@ -44,4 +45,16 @@ Private Sub printColor()
 '    Debug.Print (RGB(255, 189, 0) & " " & vbCrLf)
 
 End Sub
+
+Public Sub test()
+    MsgBox Selection.Address
+
+
+
+End Sub
+
+
+
+
+
 

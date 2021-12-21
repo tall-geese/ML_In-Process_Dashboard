@@ -44,6 +44,8 @@ Public Sub InitShopLoad()
     Call Sheets("ShopStatus").Cleanup
     Call SetMLJobs
     Call Sheets("ShopStatus").FinishTransfer
+    Call CheckAllInspLag  'Testing
+    
     
     Sheets("ShopStatus").Activate
     
@@ -306,6 +308,101 @@ End Sub
 '*****************   Public Routines   **********************
 '************************************************************
 
+'Called by RibbonCommands.ShowWarnings
+Public Sub CheckAllInspLag()
+    
+    'TODO: This should prob ask for the ShopStatus to clean up its warning symbols if they exist already...
+
+    Dim workingRange As Range
+    Dim jobCell As Range
+    Dim jobFails As Collection
+    
+    Set jobFails = New Collection
+    Set workingRange = Range("D2:D" & Range("D2").End(xlDown).row)
+    
+    
+    For Each jobCell In workingRange
+        If jobCell.Offset(0, GetCol("ML_Rdy") - jobCell.column).Value = "TRUE" And jobCell.Offset(0, GetCol("Set%") - jobCell.column).Value = "100" Then
+            Dim rtRange As Range
+            Dim rtTotals As Range
+            Dim totalRange As Range
+            Dim partNum As String
+            Dim rev As String
+            Dim fatype As String
+            Dim routine As String
+            Dim insps As String
+            
+            partNum = jobCell.Offset(0, GetCol("Part#") - jobCell.column).Value
+            rev = jobCell.Offset(0, GetCol("Rev") - jobCell.column).Value
+            fatype = jobCell.Offset(0, GetCol("FA Type") - jobCell.column).Value
+            
+            Set rtRange = Worksheets("MeasurementInfo").GetEmpInspData(jobNum:=jobCell.Value, partNumber:=partNum, rev:=rev, fatype:=fatype)
+            Set rtTotals = Worksheets("MeasurementInfo").Range(rtRange.Address)
+            
+            
+            Do
+                Set rtTotals = rtTotals.Offset(0, 1)
+                If rtTotals.Cells(1).Offset(-1, 0).Value = "" Then GoTo contJobCell
+                If rtTotals.Cells(1).Offset(-1, 0).Value = "TOTAL" Then GoTo 10
+            Loop While True
+            
+10
+            Dim i As Integer
+            For i = 1 To rtRange.Count
+                routine = rtRange.Cells(i).Value
+                insps = rtTotals.Cells(i).Value
+            
+                If InStr(routine, "IP_1XSHIFT") > 0 Then
+                    If CInt(insps) < CInt(jobCell.Offset(0, GetCol("#Shifts") - jobCell.column).Value) Then
+                        'Set a warning flag
+                        jobFails.Add jobCell.Value
+                    End If
+                    
+                ElseIf InStr(routine, "IP_BENCH") > 0 Or InStr(routine, "IP_RAMPROG") > 0 Or InStr(routine, "IP_RAM") > 0 _
+                    Or InStr(routine, "IP_COMPAR") > 0 Or InStr(routine, "IP_SYLVAC") > 0 Or InStr(routine, "IP_CMM") > 0 Then
+                    If CInt(insps) < CInt(jobCell.Offset(0, GetCol("Curr Req") - jobCell.column).Value) Then
+                        'Set a warning flag
+                        jobFails.Add jobCell.Value
+                    End If
+                End If
+            
+            Next i
+        End If
+        
+contJobCell:
+    Next jobCell
+    
+    Dim statusJobs As Range
+    Dim statJob As Range
+    Set statusJobs = Worksheets("ShopStatus").GetJobCells()
+    
+    Worksheets("ShopStatus").Unprotect PASSWORD:=config.PASSWORD
+    Application.EnableEvents = False
+    
+    On Error GoTo CheckInspErr
+    
+    For Each statJob In statusJobs
+        If IsInColl(statJob.Value, jobFails) Then
+            statJob.Offset(0, 5).Value = "[Warning]"
+            Call Worksheets("ShopStatus").SetPicture(Target:=statJob.Offset(0, 5))
+        End If
+    Next statJob
+
+
+20
+    Worksheets("ShopStatus").Protect PASSWORD:=config.PASSWORD
+    Application.EnableEvents = True
+
+    Exit Sub
+
+CheckInspErr:
+    MsgBox "Couldn't set warning flag on " & statJob.Value, vbCritical
+    GoTo 20
+
+End Sub
+
+
+
 'Called by ShopStatus
 'Return the range of the JobNumber
 Public Function GetJobInd(jobNum As String) As Range
@@ -330,4 +427,13 @@ Public Function GetCol(colName As String) As Integer
     On Error GoTo 0
 End Function
 
+
+Public Function IsInColl(jobNum As String, coll As Collection) As Boolean
+    Dim job As Variant
+    For Each job In coll
+        If UCase(jobNum) = UCase(job) Then
+            IsInColl = True
+        End If
+    Next job
+End Function
 

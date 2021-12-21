@@ -29,7 +29,7 @@ End Sub
 
     'Finds information for the give Job, setting the info if it doesnt already exist
     'Returns -> Range of Routines
-Public Function GetEmpInspData(jobNum As String, partNumber As String, rev As String, faType As String) As Range 'Routines for Job
+Public Function GetEmpInspData(jobNum As String, partNumber As String, rev As String, fatype As String) As Range 'Routines for Job
     On Error GoTo GetEmpInspDataErr
     Dim jobCell As Range
     
@@ -38,7 +38,7 @@ Public Function GetEmpInspData(jobNum As String, partNumber As String, rev As St
         'No Jobs set yet
     If Range("A1").Value = "" Then
         Set jobCell = Range("A1")
-        Call LoadMeasurementInfo(targetCell:=jobCell, jobNum:=jobNum, partNumber:=partNumber, rev:=rev, faType:=faType)
+        Call LoadMeasurementInfo(targetCell:=jobCell, jobNum:=jobNum, partNumber:=partNumber, rev:=rev, fatype:=fatype)
         GoTo 10
     End If
 
@@ -49,7 +49,7 @@ Public Function GetEmpInspData(jobNum As String, partNumber As String, rev As St
         'Do the same as above where we set the last row found  +  the inspections in it
             'Find the bottom most cell in either the Job Col or the Routine Col, we doe the +3 here to space thigns out a little bit
         Set jobCell = Range("A" & Application.WorksheetFunction.Max(Cells(Rows.Count, 1).End(xlUp).row + 3, Cells(Rows.Count, 2).End(xlUp).row + 3))
-        Call LoadMeasurementInfo(targetCell:=jobCell, jobNum:=jobNum, partNumber:=partNumber, rev:=rev, faType:=faType)
+        Call LoadMeasurementInfo(targetCell:=jobCell, jobNum:=jobNum, partNumber:=partNumber, rev:=rev, fatype:=fatype)
     End If
 
 10
@@ -139,7 +139,7 @@ End Function
                                                         '****************   Private Methods   ***********************
                                                         '************************************************************
 
-Private Sub LoadMeasurementInfo(targetCell As Range, jobNum As String, partNumber As String, rev As String, faType As String)
+Private Sub LoadMeasurementInfo(targetCell As Range, jobNum As String, partNumber As String, rev As String, fatype As String)
     On Error GoTo LoadMeasurementInfoErr
 
     Dim employees() As Variant
@@ -149,7 +149,7 @@ Private Sub LoadMeasurementInfo(targetCell As Range, jobNum As String, partNumbe
     targetCell.Value = jobNum   'TODO: maybe move this down to the bottom later,
     
     Dim faRoutine As String
-    Select Case faType
+    Select Case fatype
         Case "None"
             faRoutine = "%FA_VIS%"
         Case "Full"
@@ -338,16 +338,16 @@ Private Sub TestLoadInfo()
     Dim jobNum As String
     Dim partNumber As String
     Dim rev As String
-    Dim faType As String
+    Dim fatype As String
     
     Dim tempRange As Range
     
     jobNum = "NV16931"
     partNumber = "1907018"
     rev = "B"
-    faType = "None"
+    fatype = "None"
     
-    Set tempRange = GetEmpInspData(jobNum:=jobNum, partNumber:=partNumber, rev:=rev, faType:=faType)
+    Set tempRange = GetEmpInspData(jobNum:=jobNum, partNumber:=partNumber, rev:=rev, fatype:=fatype)
 End Sub
 
 Private Sub TestGetSumCell()

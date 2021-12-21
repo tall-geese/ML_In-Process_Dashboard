@@ -52,14 +52,14 @@ Public Sub GetInitFeatures(jobNum As String)
         Dim indCell As Range
         Dim partNum As String
         Dim rev As String
-        Dim faType As String
+        Dim fatype As String
         
         Set indCell = Worksheets("ShopLoad").GetJobInd(jobNum)
         partNum = indCell.Offset(0, Worksheets("ShopLoad").GetCol("Part#") - indCell.column)
         rev = indCell.Offset(0, Worksheets("ShopLoad").GetCol("Rev") - indCell.column)
-        faType = indCell.Offset(0, Worksheets("ShopLoad").GetCol("FA Type") - indCell.column)
+        fatype = indCell.Offset(0, Worksheets("ShopLoad").GetCol("FA Type") - indCell.column)
         
-        Call LoadJobFeatures(jobCell:=jobCell, jobNum:=jobNum, partNum:=partNum, rev:=rev, faType:=faType)
+        Call LoadJobFeatures(jobCell:=jobCell, jobNum:=jobNum, partNum:=partNum, rev:=rev, fatype:=fatype)
     End If
       
     'TODO: At this point, we want to check if any routines at all were loaded
@@ -109,14 +109,14 @@ Private Sub RefreshShopStatusValues()
 End Sub
 
 
-Private Sub LoadJobFeatures(jobCell As Range, jobNum As String, partNum As String, rev As String, faType As String)
+Private Sub LoadJobFeatures(jobCell As Range, jobNum As String, partNum As String, rev As String, fatype As String)
     
     Dim routineResults() As Variant
     Dim faRoutine As String
     jobCell.Value = jobNum
     
     
-    Select Case faType
+    Select Case fatype
         Case "None"
             faRoutine = "%FA_VIS%"
         Case "Full"
@@ -353,15 +353,15 @@ Private Sub TestLoadFeatures()
     Dim jobNum As String
     Dim partNum As String
     Dim rev As String
-    Dim faType As String
+    Dim fatype As String
     
     Set jobCell = Range("A1")
     jobNum = "NV16783"
     partNum = "1907018"
     rev = "B"
-    faType = "None"
+    fatype = "None"
     
-    Call LoadJobFeatures(jobCell:=jobCell, jobNum:=jobNum, partNum:=partNum, rev:=rev, faType:=faType)
+    Call LoadJobFeatures(jobCell:=jobCell, jobNum:=jobNum, partNum:=partNum, rev:=rev, fatype:=fatype)
 End Sub
 
 
