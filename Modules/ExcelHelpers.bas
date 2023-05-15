@@ -19,28 +19,34 @@ Public Function GetAQL(aqlVal As String, ProdQty As Integer, aqlWB As Workbook) 
     End If
     
     Select Case ProdQty
-        Case 2 To 8
+        Case 2 To 4
             row = "2"
-        Case 9 To 15
+        Case 5 To 10
             row = "3"
-        Case 16 To 25
+        Case 11 To 15
             row = "4"
-        Case 26 To 50
+        Case 16 To 20
             row = "5"
-        Case 51 To 90
+        Case 22 To 25
             row = "6"
-        Case 91 To 150
+        Case 26 To 30
             row = "7"
-        Case 151 To 280
+        Case 31 To 50
             row = "8"
-        Case 281 To 500
+        Case 51 To 90
             row = "9"
-        Case 501 To 1200
+        Case 91 To 150
             row = "10"
-        Case 1201 To 3200
+        Case 151 To 280
             row = "11"
-        Case 3201 To 32000
+        Case 281 To 500
             row = "12"
+        Case 501 To 1200
+            row = "13"
+        Case 1201 To 3200
+            row = "14"
+        Case 3201 To 32000
+            row = "15"
         Case Else
             GoTo ProdQtyErr
     End Select
@@ -76,5 +82,7 @@ Public Function GetAddress(column As Integer) As String
     GetAddress = vArr(0)
 
 End Function
+
+
 
 

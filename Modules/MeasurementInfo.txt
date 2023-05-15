@@ -1,0 +1,381 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet4"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+
+                                                    '*************************************************************
+                                                    '*************************************************************
+                                                    '*                  MeasurementInfo
+                                                    '*
+                                                    '*        Collect and return the Count(*) of inspections
+                                                    '*      by routine and employee. Used for Generating bar graph
+                                                    '*************************************************************
+                                                    '*************************************************************
+
+Public Sub Clear()
+    Cells.Clear
+    Columns("C").NumberFormat = "General"
+End Sub
+
+
+                                                        '************************************************************
+                                                        '*****************   Public Methods   ***********************
+                                                        '************************************************************
+
+    'Finds information for the give Job, setting the info if it doesnt already exist
+    'Returns -> Range of Routines
+Public Function GetEmpInspData(jobNum As String, partNumber As String, rev As String, fatype As String) As Range 'Routines for Job
+    On Error GoTo GetEmpInspDataErr
+    Dim jobCell As Range
+    
+'Find/Set the Job
+
+        'No Jobs set yet
+    If Range("A1").Value = "" Then
+        Set jobCell = Range("A1")
+        Call LoadMeasurementInfo(targetCell:=jobCell, jobNum:=jobNum, partNumber:=partNumber, rev:=rev, fatype:=fatype)
+        GoTo 10
+    End If
+
+    Set jobCell = Range("A1:A" & Cells(Rows.Count, 1).End(xlUp).row).Find(jobNum, MatchCase:=False)
+    
+        'Job Hasn't been loaded yet
+    If jobCell Is Nothing Then
+        'Do the same as above where we set the last row found  +  the inspections in it
+            'Find the bottom most cell in either the Job Col or the Routine Col, we doe the +3 here to space thigns out a little bit
+        Set jobCell = Range("A" & Application.WorksheetFunction.Max(Cells(Rows.Count, 1).End(xlUp).row + 3, Cells(Rows.Count, 2).End(xlUp).row + 3))
+        Call LoadMeasurementInfo(targetCell:=jobCell, jobNum:=jobNum, partNumber:=partNumber, rev:=rev, fatype:=fatype)
+    End If
+
+10
+    'If the job didnt have any routines, then return nothing
+    If jobCell.Offset(1, 0) <> "" Or jobCell.Offset(1, 1).Value = "" Then
+        Err.Raise Number:=vbObjectError + 1300, Description:="No Results - MeasurementInfo.GetEmpInspData()"
+    End If
+    
+'Collect the Routine Range
+    Dim rtRange As Range
+    Set rtRange = jobCell.Offset(1, 1)
+    'If rtRange.Offset(1, 0).Value <> "" Then Set rtRange = Range(rtRange.Address & ":B" & rtRange.Row + rtRange.End(xlDown).Row - 1)
+    If rtRange.Offset(1, 0).Value <> "" Then Set rtRange = Range(rtRange.Address & ":B" & rtRange.End(xlDown).row - 1) 'Dont include the SUM()
+    
+    'Return the list of routines
+    Set GetEmpInspData = rtRange
+    
+    Exit Function
+    
+GetEmpInspDataErr:
+    If Err.Number = vbObjectError + 1300 Or Err.Number = vbObjectError + 5500 Then
+        Err.Raise Number:=Err.Number, Description:=Err.Description
+    Else
+        Err.Raise Number:=vbObjectError + 5300, Description:="Error Occured on " & vbCrLf & "MeasurementInfo.GetEmpInspData()"
+    End If
+    
+End Function
+
+    'Same as above, except returns the SUM() range. Doesnt make the call to load information since it should always be called after GetEmpInspData
+Public Function GetEmpInspDataSUM(jobNum As String, ByRef empRange As Range, ByRef colors() As Variant) As Range
+    
+    On Error GoTo GetEmpInspDataSUMErr
+    
+'Find/Set the Job
+    Dim jobCell As Range
+    Set jobCell = Range("A1:A" & Cells(Rows.Count, 1).End(xlUp).row).Find(jobNum, MatchCase:=False)
+    
+    'If the job didnt have any routines, then error
+    If jobCell Is Nothing Then
+        Err.Raise Number:=vbObjectError + 5400, Description:="Job Number Not Found" & vbCrLf & "Func. MeasurementInfo.GetEmpInspDataSUM()"
+    ElseIf jobCell.Offset(1, 0) <> "" Or jobCell.Offset(1, 1).Value = "" Then
+        Err.Raise Number:=vbObjectError + 1400, Description:="No Results" & vbCrLf & "Func. MeasurementInfo.GetEmpInspDataSUM()"
+    End If
+    
+'Collect the Routine Range
+    Dim sumRange As Range
+    Set sumRange = jobCell.Offset(1, 1)
+        'No Routines for this job, should never happen
+    If sumRange.Value = "SUM" Or sumRange.Offset(1, 0).Value = "" Then
+        Err.Raise Number:=vbObjectError + 5400, Description:="Routines Not Found" & vbCrLf & "Func. MeasurementInfo.GetEmpInspDataSUM()"
+    End If
+    
+    Set sumRange = sumRange.End(xlDown)
+
+'Find the SUM() range
+    'We cant use .End() to find the end of the sum range, because there could be Null or no data
+    'Need to find the range spanning the colors and offset up
+    If sumRange.Offset(1, 1).Value <> "" Then
+        Set sumRange = sumRange.Offset(1, 1)
+        If sumRange.Offset(0, 1).Value <> "" Then
+            Set sumRange = Range(sumRange.Address & ":" & sumRange.End(xlToRight).Address)
+        End If
+    Else
+        Err.Raise Number:=vbObjectError + 1400, Description:="No Measurements" & vbCrLf & "Func. MeasurementInfo.GetEmpInspDataSUM()"  'No Employees /Color
+    End If
+
+    colors = sumRange
+    Set sumRange = sumRange.Offset(-1, 0)
+    Set sumRange = Range(sumRange.Cells(1), sumRange.Cells(sumRange.Count - 1))
+    Set empRange = sumRange.Offset(jobCell.row - sumRange.row, 0)
+
+    'Return the range of inspection counts
+    Set GetEmpInspDataSUM = sumRange
+
+    Exit Function
+    
+GetEmpInspDataSUMErr:
+    If Err.Number = vbObjectError + 5400 Or Err.Number = vbObjectError + 1400 Then
+        Err.Raise Number:=Err.Number, Description:=Err.Description
+    Else
+        Err.Raise Number:=vbObjectError + 5400, Description:="Error Occured on " & vbCrLf & "Func. MeasurementInfo.GetEmpInspDataSUM()"
+    End If
+End Function
+
+
+                                                        '************************************************************
+                                                        '****************   Private Methods   ***********************
+                                                        '************************************************************
+
+Private Sub LoadMeasurementInfo(targetCell As Range, jobNum As String, partNumber As String, rev As String, fatype As String)
+    On Error GoTo LoadMeasurementInfoErr
+
+    Dim employees() As Variant
+    Dim routines() As Variant
+    Dim results() As Variant
+    
+    targetCell.Value = jobNum   'TODO: maybe move this down to the bottom later,
+    
+    Dim faRoutine As String
+    Select Case fatype
+        Case "None"
+            faRoutine = "%FA_VIS%"
+        Case "Full"
+            faRoutine = "%FA_FIRST%"
+        Case "Mini"
+            faRoutine = "%FA_MINI%"
+        Case Else
+            'TODO: error out
+    End Select
+    
+'Routines
+    'All of the Routines that we SHOULD have measurements for...
+    routines = DBconnections.GetJobUnqiueRoutines(partNum:=partNumber, rev:=rev, faRoutine:=faRoutine)
+    If (Not routines) = -1 Then Exit Sub
+    
+    Dim rtFillRange As Range
+    Set rtFillRange = Range(Cells(targetCell.row + 1, 2), Cells(targetCell.row + 1 + UBound(routines, 2), 2))
+    rtFillRange = Application.WorksheetFunction.Transpose(routines)
+
+    
+'Employees
+    
+    employees = DBconnections.GetEmployeeListSum(jobNum:=jobNum, faRoutine:=faRoutine)
+    If (Not employees) = -1 Then
+        targetCell.Offset(rtFillRange.Count + 1, 1).Value = "SUM"
+        Exit Sub  'No Employees / Measurements
+    End If
+    
+    Dim empFillRange As Range
+    Dim empCell As Range
+    Set empFillRange = Range(targetCell.Offset(0, 2), targetCell.Offset(0, UBound(employees, 2) + 2))
+    empFillRange = employees
+
+        'Put leading 0's in employee #'s
+    For Each empCell In empFillRange
+        If InStr(empCell.Value, "?") = 0 Then
+            empCell.NumberFormat = "0000"
+        End If
+    Next empCell
+    
+'Data
+    For i = 0 To UBound(employees, 2)
+        employees(0, i) = "[" & employees(0, i) & "]"
+    Next i
+    
+    
+    Dim employeeList As Variant
+    employeesList = Join(Application.index(employees, , 0), ",")
+    
+    results = DBconnections.GetEmployeeInspCount(jobNum:=jobNum, faRoutine:=faRoutine, employees:=employeesList)
+    If (Not results) = -1 Then
+        GoTo SetTotal
+    End If
+    
+    results = Application.WorksheetFunction.Transpose(results)
+    
+    
+    'Its possible that we have only results for a single routine....
+    Dim dimSize As Integer
+    dimSize = GetDimension(results)
+    If dimSize = 2 Then GoTo 10
+    
+
+'1-D Array, set results
+    For Each rtCell In rtFillRange
+        If rtCell.Value = results(1) Then
+            For j = 1 To UBound(results)
+                If j = 1 Then GoTo NextDim
+                rtCell.Offset(0, j - 1).Value = results(j)
+NextDim:
+            Next j
+        End If
+    Next rtCell
+    
+    GoTo SetTotal
+    
+     
+'2-D Array, set results
+10
+    'Results are out of Order to the Routines we found earlier, need to iterate through and find the matching routines
+    For i = 1 To UBound(results, 1)
+        For Each rtCell In rtFillRange
+            If results(i, 1) = rtCell.Value Then
+                For j = 1 To UBound(results, 2)
+                    If j = 1 Then GoTo NextCol
+                    rtCell.Offset(0, j - 1).Value = results(i, j)
+NextCol:
+                Next j
+                GoTo NextRow
+            End If
+        Next rtCell
+NextRow:
+    Next i
+    
+SetTotal:
+
+'TOTAL column
+    Dim totalCell As Range
+    Set totalCell = empFillRange.Cells(empFillRange.Count).Offset(0, 1)
+    totalCell.Value = "TOTAL"
+    
+    For i = 1 To rtFillRange.Count
+        With totalCell.Offset(i, 0)
+            .Formula = "=SUM(" & .Offset(0, -empFillRange.Count).Address & ":" & .Offset(0, -1).Address & ")"
+        End With
+    Next i
+    
+
+
+        'Remove the Leading PartNum_Rev_ from routine name, it just takes up space
+    For Each rtCell In rtFillRange
+        rtCell.Value = Replace(rtCell.Value, partNumber & "_" & rev & "_", "")
+    Next rtCell
+    
+SetSum:
+    
+'SUM() row
+    Dim sumCell As Range
+    Set sumCell = targetCell.Offset(rtFillRange.Count + 1, 1)
+    sumCell.Value = "SUM"
+    
+    For i = 0 To UBound(employees, 2)
+        With sumCell.Offset(0, i + 1)
+            .Formula = "=SUM(" & .Offset(-1, 0).Address & ":" & .Offset(-rtFillRange.Count, 0).Address & ")"
+        End With
+    Next i
+    
+'Color setting
+    For i = 1 To UBound(employees, 2) + 2
+        With sumCell.Offset(1, i)
+            Select Case i
+            Case 0
+                'Skip adding to the header
+            Case 1
+                .Value = Config.COLOR_BAR_1
+            Case 2
+                .Value = Config.COLOR_BAR_2
+            Case 3
+                .Value = Config.COLOR_BAR_3
+            Case 4
+                .Value = Config.COLOR_BAR_4
+            Case 5
+                .Value = Config.COLOR_BAR_5
+            Case 6
+                .Value = Config.COLOR_BAR_6
+            Case 7
+                .Value = Config.COLOR_BAR_7
+            Case 8
+                .Value = Config.COLOR_BAR_8
+            Case 9
+                .Value = Config.COLOR_BAR_9
+            Case 10
+                .Value = Config.COLOR_BAR_10
+            Case 11
+                .Value = Config.COLOR_BAR_11
+            Case Else:
+                .Value = RGB(0, 0, 0)
+        End Select
+        End With
+    Next i
+    
+    Exit Sub
+
+LoadMeasurementInfoErr:
+    Err.Raise Number:=vbObjectError + 5500, Description:="Error Occured On" & vbCrLf & "Sub. MeasurementInfo.LoadMeasurementInfo()"
+End Sub
+
+
+
+Private Function GetLastRoutine(jobCell As Range) As Range
+    If jobCell.Offset(1, 1).Value = "" Then Exit Function   'Or raise an error
+    If jobCell.Offset(2, 1).Value = "" Then
+        Set GetLastRoutine = jobCell.Offset(1, 1)
+    Else
+        Set GetLastRoutine = Cells(jobCell.Offset(1, 1).End(xlDown).row, 2)
+    End If
+
+End Function
+
+
+
+                                                        '************************************************************
+                                                        '**********************   Tests   ***************************
+                                                        '************************************************************
+
+
+Private Sub TestLoadInfo()
+    Dim jobNum As String
+    Dim partNumber As String
+    Dim rev As String
+    Dim fatype As String
+    
+    Dim tempRange As Range
+    
+    jobNum = "NV16931"
+    partNumber = "1907018"
+    rev = "B"
+    fatype = "None"
+    
+    Set tempRange = GetEmpInspData(jobNum:=jobNum, partNumber:=partNumber, rev:=rev, fatype:=fatype)
+End Sub
+
+Private Sub TestGetSumCell()
+    Dim a As Range
+    Set a = GetEmpInspDataSUM(jobNum:="NV16728")
+End Sub
+
+
+
+                                                        '************************************************************
+                                                        '***********   Worksheet Helper Functions   *****************
+                                                        '************************************************************
+
+    'Called by LoadProdLaborData()
+        'If a recordSet one has a single row, then it returns as a 1d array, as opposed to the normal 2d
+Function GetDimension(var As Variant) As Long
+    On Error GoTo Err
+    Dim i As Long
+    Dim tmp As Long
+    i = 0
+    Do While True
+        i = i + 1
+        tmp = UBound(var, i)
+    Loop
+Err:
+    GetDimension = i - 1
+End Function
+
+

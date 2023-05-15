@@ -1,0 +1,454 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet3"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Private Sub Cleanup()
+'    Rows("2:100").Clear
+    Range(Cells(2, 1), Cells(600, 24)).Clear
+    Range(Cells(2, 26), Cells(600, 26)).Clear
+    Cells.NumberFormat = "@"
+End Sub
+
+Public Sub InitShopLoad()
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    Call Cleanup
+    Call Sheets("ShopStatus").Cleanup
+    Call Sheets("ProdInfo").Clear
+    Call Sheets("MeasurementInfo").Clear
+    Call Sheets("JobFeatures").Clear
+    
+    Dim results() As Variant
+    results = DBconnections.GetShopLoadInfo()
+    results = Application.Transpose(results)
+    
+    Dim fillRange As Range
+    Set fillRange = Range(Cells(2, 1), Cells(UBound(results, 1) + 1, UBound(results, 2)))
+    fillRange = results
+    
+    Set fillRange = Application.Union(fillRange, fillRange.Offset(0, 6))
+    fillRange.FormatConditions.Add Type:=xlExpression, Operator:=xlEqual, _
+        Formula1:="=$V2=" & Chr(34) & "TRUE" & Chr(34)
+    fillRange.FormatConditions(1).Interior.color = RGB(248, 203, 173)
+    fillRange.HorizontalAlignment = xlCenter
+    
+    Call FillCustomers
+    Call SetMLReady
+    Call SetAQLforMLJobs
+    Call SetShiftsWorked
+    Call ThisWorkbook.Sheets("ShopStatus").Cleanup
+    Call SetMLJobs
+    Call ThisWorkbook.Sheets("ShopStatus").FinishTransfer
+    Call CheckAllInspLag  'Testing
+    
+    
+    ThisWorkbook.Sheets("ShopStatus").Activate
+    
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+End Sub
+
+Private Sub FillCustomers()
+    Dim workingRange As Range
+    Set workingRange = Range("A2:A" & Range("A2").End(xlDown).row)
+    
+    Dim projID As String
+    Dim cusName As String
+    Dim jobNum As String
+    Dim parseAttempt As Boolean
+    
+    For Each subCell In workingRange
+        jobNum = subCell.Offset(0, 3).Value  'JobNum
+        If subCell.Offset(0, 12).Value <> "" Then  'Value of ProjID
+            projID = subCell.Offset(0, 12).Value
+checkProj:
+'            'TODO: set an error handling here
+'            DBconnections.SQLQuery "SELECT pr.Character01 FROM EpicorLive10.dbo.Project pr WHERE pr.ProjectID='" & projID & "'", Connections.E10
+'            If DBconnections.ResultRecordSet.EOF Then GoTo 10
+'                'Get the Epicor Abbreivavtion attached to the project ID
+            cusName = DBconnections.GetEpicorCustName(projID)
+            If cusName = "" Then GoTo 10
+            
+checkAbbr:
+            'TODO: Different error handling here? SHould be a msg that a QE needs to add in a translation field or something
+            On Error GoTo TranslateError
+            cusName = DBconnections.GetKioskCustName(cusName)
+            subCell.Offset(0, 20).Value = cusName
+            On Error GoTo 0
+        Else
+10
+            If parseAttempt = True Then GoTo IDError
+            If (Not (IsNumeric(Left(jobNum, 1))) And Not (IsNumeric(Mid(jobNum, 2, 1)))) Then
+                If UCase(Left(jobNum, 1)) = "R" Then
+                    If (IsNumeric(Mid(jobNum, 3, 1))) Then 'RD0000
+                        cusName = Left(jobNum, 2)
+                    Else 'RNV0000
+                        cusName = Mid(jobNum, 2, 2)
+                    End If
+                Else 'NV0000
+                    cusName = Left(jobNum, 2)
+                    If cusName = "QA" Or cusName = "ME" Then GoTo IDError 'TODO: assuming we got here with no project id, then we have to give up
+                End If
+                GoTo checkAbbr
+            Else '003671-4-1, extract the 3671
+                Dim i As Integer
+                Dim dig As String
+                Dim removedLeading As Boolean
+                Do
+                    dig = Mid(jobNume, i, 1)
+                    If IsNumeric(dig) And dig <> "0" Then   'Filters out any P's, R's or 0's leading up to the true Proj Id
+                        projID = projID & dig
+                        removedLeading = True
+                    ElseIf dig = "0" And removedLeading = True Then
+                        projID = projID & dig       'Once we have any leading 0's filtered out, its fine to include trialing 0's
+                    End If
+                    i = i + 1
+                Loop While Mid(jobNum, i, 1) <> "-"
+            End If
+                    'Set a flag to avoid inf loop
+                parseAttempt = True
+                GoTo checkProj
+        End If
+    
+NextCell:
+'reset vars
+        projID = ""
+        cusName = ""
+        cusName = ""
+        jobNum = ""
+        parseAttempt = False
+    Next subCell
+    
+    
+    Exit Sub
+    
+IDError:
+    MsgBox "We couldn't find a Customer Name for [ProjID]: " & projID & vbCrLf & "For [JobNumber]: " & jobNum _
+        & "Couldnt determine if MeasurLink job or Not, Add a Customer Name to Project Entry in E10", vbCritical
+    GoTo NextCell
+    
+TranslateError:
+    MsgBox "Found the Customer [Abbreviation]: " & cusName & " For the [JobNumber]: " & jobNum & vbCrLf & "But this couldn't be translated into a directory for Inspection Reports" _
+            & "Ask a QE to add this to the InspectionKiosk.CustomerTranslation database" & vbCrLf & vbCrLf _
+            & "Not enough information to determine if this was a MeasurLink Inspection Plan or Not", vbCritical
+    GoTo NextCell
+End Sub
+
+Private Sub SetMLReady()
+    On Error GoTo setMLError
+
+    Dim workingRange As Range
+    Set workingRange = Range("A2:A" & Range("A2").End(xlDown).row)
+    
+    Dim jobNum As String
+    Dim partNum As String
+    Dim rev As String
+    Dim machType As String
+    
+    For Each subCell In workingRange
+        jobNum = subCell.Offset(0, 3).Value
+        partNum = subCell.Offset(0, 5).Value
+        rev = subCell.Offset(0, 6).Value
+        machType = subCell.Offset(0, 18).Value
+        
+        If DBconnections.IsMeasurLinkJob(jobNum, partNum, rev, machType) Then
+            subCell.Offset(0, 21).Value = "TRUE"
+        Else
+reportNotRdy:
+            subCell.Offset(0, 21).Value = "FALSE"
+        End If
+
+    Next subCell
+    
+    Exit Sub
+    
+setMLError:
+    If Err.Number = vbObjectError + 1100 Then
+        On Error GoTo -1  'Clear the error, say its false and continue on
+        GoTo reportNotRdy
+    End If
+
+End Sub
+
+
+Private Sub SetAQLforMLJobs()
+    Dim workingRange As Range
+    Set workingRange = Range("A2:A" & Range("A2").End(xlDown).row)
+    Dim fso As FileSystemObject
+    Set fso = New FileSystemObject
+    
+'For each ML job, find the customer's AQL
+    On Error GoTo ExcelOLEDBerr
+    For Each subCell In workingRange
+        If subCell.Offset(0, 21).Value = "TRUE" Then   'If ML_Rdy
+            Dim cust As String
+            Dim drawing As String
+            Dim path As String
+            Dim fname As String
+            cust = subCell.Offset(0, 20).Value
+            drawing = subCell.Offset(0, 4).Value
+            
+            path = "J:\Inspection Reports\" & cust & "\" & drawing
+            fname = Dir(path & "\Current Revision\" & "*.xlsm")  'Search for IR in current rev first
+            
+            If fname <> "" Then
+                subCell.Offset(0, 22).Value = GetXLAQL(path & "\Current Revision\" & fname)
+            Else
+                fname = Dir(path & "\Draft\" & "*.xlsm") 'If not found, search in Draft
+                If fname <> "" Then
+                    subCell.Offset(0, 22).Value = GetXLAQL(path & "\Draft\" & fname)
+                Else
+                    MsgBox "Couldnt find anything for " & subCell.Offset(0, 3).Value, vbCritical
+                End If
+            End If
+            
+        End If
+contSubCell:
+    Next subCell
+    
+'For each ML job w/ AQL, find the Req# of inspections based on the RunQty
+    
+    'iterate through each of the cells, check that we have an AQL and run Qty
+    'pass the runQty and AQL to the excel helpers module and ask it to return the qty and set it
+    
+    On Error GoTo AQLwbErr
+    Dim aqlWB As Workbook
+    Set aqlWB = Workbooks.Open(Filename:="\\JADE76\IQS Documents\Current\IR Tables.xlsx", UpdateLinks:=0, ReadOnly:=True)
+    
+    On Error GoTo AQLReadErr
+    
+    For Each subCell In workingRange
+        If subCell.Offset(0, 21).Value = "TRUE" And subCell.Offset(0, 22).Value <> "" Then
+        
+            Dim aqlInspQty As String
+            aqlInspQty = ExcelHelpers.GetAQL(aqlVal:=subCell.Offset(0, 22).Value, ProdQty:=subCell.Offset(0, 11).Value, aqlWB:=aqlWB)
+            subCell.Offset(0, 23).Value = aqlInspQty
+        End If
+conReadSubCell:
+    Next subCell
+
+    aqlWB.Close SaveChanges:=False
+    Application.ScreenUpdating = True
+    
+    Exit Sub
+
+ExcelOLEDBerr:
+    MsgBox "No Customer AQL was set for" & vbCrLf & "Job: " & subCell.Offset(0, 3).Value & vbTab & "Draw: " & subCell.Offset(0, 4).Value & vbCrLf & "Setting 1.00 AQL as Default" & vbCrLf, vbInformation
+    subCell.Offset(0, 22).Value = "1"
+    Err.Clear
+    Resume contSubCell
+    Resume contSubCell
+    
+AQLReadErr:
+    MsgBox "Couldnt Get the AQL Qty for " & vbCrLf & subCell.Offset(0, 3).Value & vbTab & subCell.Offset(0, 4).Value, vbCritical
+    On Error GoTo 0
+    Resume conReadSubCell
+    
+AQLwbErr:
+    MsgBox "Can't open the AQL workbook in the IQS Documents Directory", vbCritical
+    'TODO Raise an error here to the Init Shop Load
+
+End Sub
+
+Private Sub SetShiftsWorked()
+    '******   work in progres    ******  17
+    Dim workingRange As Range
+    Set workingRange = Range("A2:A" & Range("A2").End(xlDown).row)
+    Dim subCell As Range
+    
+    For Each subCell In workingRange
+        If subCell.Offset(0, 21).Value = "TRUE" Then
+            Dim numShifts As String
+            numShifts = 0
+            If subCell.Offset(0, 13).Value = "0" Then GoTo 10
+            numShifts = DBconnections.Get1XSHIFTInsps(JobID:=subCell.Offset(0, 3).Value, Operation:=subCell.Offset(0, 17).Value)
+10
+            subCell.Offset(0, 25).Value = numShifts
+        End If
+nextShift:
+    Next subCell
+    
+    Exit Sub
+    
+shiftErr:
+    MsgBox "Couldn't determine # of shifts worked for this job" & vbCrLf & vbTab & subCell.Offset(0, 3)
+    On Error GoTo 0
+    Resume nextShift
+    
+End Sub
+
+Private Sub SetMLJobs()
+    Dim workingRange As Range
+    Set workingRange = Me.Range("A2:A" & Range("A2").End(xlDown).row)
+    Dim lastCell As String
+    
+    For Each subCell In workingRange
+        If subCell.Offset(0, 21).Value <> "TRUE" Then GoTo NextCell
+        
+        If subCell.Value <> lastCell Then
+            lastCell = subCell.Value
+            ThisWorkbook.Sheets("ShopStatus").AddCell (Mid(subCell.Value, 1, Len(subCell.Value) - 1) & " " & Mid(subCell.Value, Len(subCell.Value), 1))
+        End If
+        
+        Dim jobInfo(0 To 6) As Variant
+        With subCell
+            jobInfo(0) = Left(.Offset(0, 1).Value, Len(.Offset(0, 1).Value) - 11) 'Machine
+            jobInfo(1) = .Offset(0, 3).Value 'Job#
+            jobInfo(2) = .Offset(0, 4).Value 'Draw#
+            jobInfo(3) = .Offset(0, 5).Value 'Part#
+            jobInfo(4) = .Offset(0, 6).Value 'Rev
+            jobInfo(5) = .Offset(0, 7).Value 'Description
+            If .Offset(0, 10).Value <> "100" Then
+                jobInfo(6) = "[Setup]"
+            Else
+                jobInfo(6) = "[Production]"
+            End If
+        End With
+        
+        ThisWorkbook.Sheets("ShopStatus").AddJob (jobInfo)
+    
+NextCell:
+    Next subCell
+
+End Sub
+
+
+'************************************************************
+'*****************   Public Routines   **********************
+'************************************************************
+
+'Called by RibbonCommands.ShowWarnings
+Public Sub CheckAllInspLag()
+    
+    'TODO: This should prob ask for the ShopStatus to clean up its warning symbols if they exist already...
+
+    Dim workingRange As Range
+    Dim jobCell As Range
+    Dim jobFails As Collection
+    
+    Set jobFails = New Collection
+    Set workingRange = Me.Range("D2:D" & Range("D2").End(xlDown).row)
+    
+    
+    For Each jobCell In workingRange
+        If jobCell.Offset(0, GetCol("ML_Rdy") - jobCell.column).Value = "TRUE" And jobCell.Offset(0, GetCol("Set%") - jobCell.column).Value = "100" Then
+            Dim rtRange As Range
+            Dim rtTotals As Range
+            Dim totalRange As Range
+            Dim partNum As String
+            Dim rev As String
+            Dim fatype As String
+            Dim routine As String
+            Dim insps As String
+            
+            partNum = jobCell.Offset(0, GetCol("Part#") - jobCell.column).Value
+            rev = jobCell.Offset(0, GetCol("Rev") - jobCell.column).Value
+            fatype = jobCell.Offset(0, GetCol("FA Type") - jobCell.column).Value
+            
+            Set rtRange = ThisWorkbook.Worksheets("MeasurementInfo").GetEmpInspData(jobNum:=jobCell.Value, partNumber:=partNum, rev:=rev, fatype:=fatype)
+            Set rtTotals = ThisWorkbook.Worksheets("MeasurementInfo").Range(rtRange.Address)
+            
+            
+            Do
+                Set rtTotals = rtTotals.Offset(0, 1)
+                If rtTotals.Cells(1).Offset(-1, 0).Value = "" Then GoTo contJobCell
+                If rtTotals.Cells(1).Offset(-1, 0).Value = "TOTAL" Then GoTo 10
+            Loop While True
+            
+10
+            Dim i As Integer
+            For i = 1 To rtRange.Count
+                routine = rtRange.Cells(i).Value
+                insps = rtTotals.Cells(i).Value
+            
+                If InStr(routine, "IP_1XSHIFT") > 0 Then
+                    If CInt(insps) < CInt(jobCell.Offset(0, GetCol("#Shifts") - jobCell.column).Value) Then
+                        'Set a warning flag
+                        jobFails.Add jobCell.Value
+                    End If
+                    
+                ElseIf InStr(routine, "IP_BENCH") > 0 Or InStr(routine, "IP_RAMPROG") > 0 Or InStr(routine, "IP_RAM") > 0 _
+                    Or InStr(routine, "IP_COMPAR") > 0 Or InStr(routine, "IP_SYLVAC") > 0 _
+                    Or InStr(routine, "IP_CMM") > 0 Or InStr(routine, "IP_CT") > 0 Then
+                    If CInt(insps) < CInt(jobCell.Offset(0, GetCol("Curr Req") - jobCell.column).Value) Then
+                        'Set a warning flag
+                        jobFails.Add jobCell.Value
+                    End If
+                End If
+            
+            Next i
+        End If
+        
+contJobCell:
+    Next jobCell
+    
+    Dim statusJobs As Range
+    Dim statJob As Range
+    Set statusJobs = ThisWorkbook.Worksheets("ShopStatus").GetJobCells()
+    
+    ThisWorkbook.Worksheets("ShopStatus").Unprotect PASSWORD:=Config.PASSWORD
+    Application.EnableEvents = False
+    
+    On Error GoTo CheckInspErr
+    
+    For Each statJob In statusJobs
+        If IsInColl(statJob.Value, jobFails) Then
+            statJob.Offset(0, 5).Value = "[Warning]"
+            Call ThisWorkbook.Worksheets("ShopStatus").SetPicture(Target:=statJob.Offset(0, 5))
+        End If
+    Next statJob
+
+
+20
+    ThisWorkbook.Worksheets("ShopStatus").Protect PASSWORD:=Config.PASSWORD
+    Application.EnableEvents = True
+
+    Exit Sub
+
+CheckInspErr:
+    MsgBox "Couldn't set warning flag on " & statJob.Value, vbCritical
+    GoTo 20
+
+End Sub
+
+
+
+'Called by ShopStatus
+'Return the range of the JobNumber
+Public Function GetJobInd(jobNum As String) As Range
+    Dim workingRange As Range
+    Set workingRange = Range("D1:D" & Range("D1").End(xlDown).row)
+    
+    Set GetJobInd = workingRange.Find(jobNum, LookIn:=xlValues, MatchCase:=False, SearchFormat:=False)
+    
+End Function
+
+
+
+'Return column # of the header
+Public Function GetCol(colName As String) As Integer
+    Dim colRange As Range
+    Set colRange = Range("A1:Z1")
+    On Error Resume Next
+    GetCol = Application.WorksheetFunction.Match(colName, colRange, 0)
+    If Err.Number <> 0 Then
+        GetCol = 0
+    End If
+    On Error GoTo 0
+End Function
+
+
+Public Function IsInColl(jobNum As String, coll As Collection) As Boolean
+    Dim job As Variant
+    For Each job In coll
+        If UCase(jobNum) = UCase(job) Then
+            IsInColl = True
+        End If
+    Next job
+End Function
+

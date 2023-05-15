@@ -12,7 +12,7 @@ Attribute VB_Exposed = True
 Private Sub Workbook_Open()
     'PopulateShopLoad
 '    Call Sheets("ShopStatus").DestroyCharts
-    Sheets("ShopStatus").Protect PASSWORD:=config.PASSWORD
+    Sheets("ShopStatus").Protect PASSWORD:=Config.PASSWORD
     
    
     result = MsgBox("Would you like to refresh the shop load?", vbYesNo)
@@ -28,13 +28,13 @@ Private Sub Workbook_Open()
 End Sub
 
 Public Sub Events()
-    Worksheets("ShopStatus").Protect PASSWORD:=config.PASSWORD
+    Worksheets("ShopStatus").Protect PASSWORD:=Config.PASSWORD
     Application.EnableEvents = True
 
 End Sub
 
 Public Sub NoEvents()
-    Worksheets("ShopStatus").Unprotect PASSWORD:=config.PASSWORD
+    Worksheets("ShopStatus").Unprotect PASSWORD:=Config.PASSWORD
     Application.EnableEvents = False
 
 End Sub

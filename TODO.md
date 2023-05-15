@@ -10,9 +10,18 @@
 6. If the user chooses not to refresh the shop load data, we will still need to clear the routine cells and arrows, since the arrow objects have no reference
 7. When calculating the AQL for a job, need to make sure we are taking the maximum between the two of ProdQty and RunQty. 
    1. Also the Formula for the *Current AQL* should take into account if the Prod Qty is higher, then it doenst make sense to do a proportional value anymore.
+8. For Reline Breakoff Extensions, we need a way to filter out the **MILL** ops so that the warning flag does not appear.
+9. DataTraceability unfortunately will only track a StartObsID and EndObsID. Since we cant actually ID to ID, a lot of inspections get returned as ???
+   1.  Can we make some kind of inline query where we can grab the result from the row above if its a NULL??
+
+Looks like we are grabbing observations by the obsID instead of obsNo
+which means that if we only partially fill out a row of inspection data
+it looks like every attribute feature has been passed.
+Not sure if its behaving this way for variable features
 
 ### General
 1. Need to add error handling to called functions and routines, if nothing else then to let us know where errors occurred, save some time on debugging.
+2. Cell leads want a way to verify who is not getting done their inspections instead of *just* telling us how far behind we are
 
 ### ShopStatus
 1. Calls to activate the last active cell at the end of chart setting should probably be prefix with an

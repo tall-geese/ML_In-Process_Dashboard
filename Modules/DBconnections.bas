@@ -28,7 +28,7 @@ Private Sub InitConnection()
     If ML7DataBaseConnection Is Nothing Then
         
         Set ML7DataBaseConnection = New ADODB.Connection
-        ML7DataBaseConnection.ConnectionString = config.ML7_CONN_STRING
+        ML7DataBaseConnection.ConnectionString = Config.ML7_CONN_STRING
         ML7DataBaseConnection.Open
         
     End If
@@ -37,14 +37,14 @@ Private Sub InitConnection()
     If E10DatabaseConnection Is Nothing Then
     
         Set E10DatabaseConnection = New ADODB.Connection
-        E10DatabaseConnection.ConnectionString = config.E10_CONN_STRING
+        E10DatabaseConnection.ConnectionString = Config.E10_CONN_STRING
         E10DatabaseConnection.Open
         
     End If
     If KioskDatabaseConnection Is Nothing Then
     
         Set KioskDatabaseConnection = New ADODB.Connection
-        KioskDatabaseConnection.ConnectionString = config.KIOSK_CONN_STRING
+        KioskDatabaseConnection.ConnectionString = Config.KIOSK_CONN_STRING
         KioskDatabaseConnection.Open
         
     End If
@@ -101,7 +101,12 @@ QueryFailed:
     Err.Raise Number:=vbObjectError + 3000, Description:="Func: SQLQuery() Failed" & vbCrLf & Join(params, vbCrLf) & vbCrLf & Err.Description
     
 NoRows:
+    For i = 0 To UBound(params)
+        Debug.Print params(i)
+
+    Next i
     Err.Raise Number:=vbObjectError + 2000, Description:="Func SQLQuery(): No Rows Returned"
+    
 End Function
 
 
@@ -114,7 +119,7 @@ Public Function GetShopLoadInfo() As Variant()
     Dim query As String
     Dim params() As Variant
     
-    query = fso.OpenTextFile(config.QUERY_PATH & "JobLoad.sql", ForReading).ReadAll()
+    query = fso.OpenTextFile(Config.QUERY_PATH & "JobLoad.sql", ForReading).ReadAll()
     
     'TODO:set the onError
     Call SQLQuery(queryString:=query, conn_enum:=Connections.E10, params:=params)
@@ -128,8 +133,10 @@ Public Function GetEpicorCustName(projID As String) As String
     Set fso = New FileSystemObject
     Dim query As String
     Dim params() As Variant
+    
+    On Error GoTo EpCustNameErr
 
-    query = fso.OpenTextFile(config.QUERY_PATH & "EpicorCustomer.sql", ForReading).ReadAll()
+    query = fso.OpenTextFile(Config.QUERY_PATH & "EpicorCustomer.sql", ForReading).ReadAll()
     params = Array("pr.ProjectID," & projID)
     
     Call SQLQuery(queryString:=query, conn_enum:=Connections.E10, params:=params)
@@ -137,14 +144,21 @@ Public Function GetEpicorCustName(projID As String) As String
     If Not ResultRecordSet.EOF Then
         GetEpicorCustName = ResultRecordSet.Fields(0)
     End If
+    
+    Exit Function
+    
+EpCustNameErr:
+    MsgBox "Couldn't find a Customer Name associated with this Project ID" & vbCrLf & projID, vbCritical
 End Function
 
 Public Function GetKioskCustName(cusName As String) As String
     Set fso = New FileSystemObject
     Dim query As String
     Dim params() As Variant
+    
+    On Error GoTo KioskCustName
 
-    query = fso.OpenTextFile(config.QUERY_PATH & "KioskCustomer.sql", ForReading).ReadAll()
+    query = fso.OpenTextFile(Config.QUERY_PATH & "KioskCustomer.sql", ForReading).ReadAll()
     params = Array("ct.Abbreviation," & cusName)
     
     Call SQLQuery(queryString:=query, conn_enum:=Connections.Kiosk, params:=params)
@@ -152,6 +166,12 @@ Public Function GetKioskCustName(cusName As String) As String
     If Not ResultRecordSet.EOF Then
         GetKioskCustName = ResultRecordSet.Fields(0)
     End If
+    
+    Exit Function
+    
+KioskCustName:
+    MsgBox "Couldn't find a Translation for the following Customer Name" & vbCrLf & cusName & vbCrLf & vbCrLf _
+    & "Unable to find the Report Path", vbCritical
 End Function
 
 
@@ -163,7 +183,7 @@ Public Function GetProductionInfo(jobNum As String, opNum As String) As Variant(
     
     On Error GoTo prodInfoErr
     
-    query = Split(fso.OpenTextFile(config.QUERY_PATH & "ProductionInfo.sql", ForReading).ReadAll(), ";")(0)
+    query = Split(fso.OpenTextFile(Config.QUERY_PATH & "ProductionInfo.sql", ForReading).ReadAll(), ";")(0)
     params = Array("ld.JobNum," & jobNum, "ld.OprSeq," & opNum)
     
     'TODO:set the onError
@@ -188,7 +208,7 @@ Public Function GetProductionInfoSUM(jobNum As String, opNum As String) As Varia
     Dim query As String
     Dim params() As Variant
     
-    query = Split(fso.OpenTextFile(config.QUERY_PATH & "ProductionInfo.sql", ForReading).ReadAll(), ";")(1)
+    query = Split(fso.OpenTextFile(Config.QUERY_PATH & "ProductionInfo.sql", ForReading).ReadAll(), ";")(1)
     params = Array("ld.JobNum," & jobNum, "ld.OprSeq," & opNum)
     
     
@@ -208,7 +228,7 @@ Function Get1XSHIFTInsps(JobID As String, Operation As Variant) As String
     Dim params() As Variant
     
     On Error GoTo shiftErr
-    query = fso.OpenTextFile(config.QUERY_PATH & "1XSHIFT.sql").ReadAll
+    query = fso.OpenTextFile(Config.QUERY_PATH & "1XSHIFT.sql").ReadAll
     params = Array("jo.JobNum," & JobID, "jo.OprSeq," & Operation)
     
     Call SQLQuery(queryString:=query, conn_enum:=Connections.E10, params:=params)
@@ -231,7 +251,7 @@ Public Function GetEmployeeListSum(jobNum As String, faRoutine As String) As Var
     Dim query As String
     Dim params() As Variant
     
-    query = Split(fso.OpenTextFile(config.QUERY_PATH & "MLMeasurementInfo.sql", ForReading).ReadAll(), ";")(0)
+    query = Split(fso.OpenTextFile(Config.QUERY_PATH & "MLMeasurementInfo.sql", ForReading).ReadAll(), ";")(0)
     params = Array("r.RunName," & jobNum, "rt.RoutineName," & faRoutine, "r.RunName," & jobNum, "rt.RoutineName," & faRoutine)
     
     On Error GoTo QueryError
@@ -259,7 +279,7 @@ Public Function GetJobUnqiueRoutines(partNum As String, rev As String, faRoutine
     Dim query As String
     Dim params() As Variant
     
-    query = fso.OpenTextFile(config.QUERY_PATH & "MLUniqueRoutineList.sql", ForReading).ReadAll()
+    query = fso.OpenTextFile(Config.QUERY_PATH & "MLUniqueRoutineList.sql", ForReading).ReadAll()
 '    query = Replace(query, "{FA_TYPE}", faRoutine)
     params = Array("p.PartName," & partNum & "_" & rev, "rt.RoutineName," & faRoutine)
     
@@ -288,7 +308,7 @@ Public Function GetRoutineFeatures(jobNum As String, rtName As String) As Varian
     Dim query As String
     Dim params() As Variant
     
-    query = fso.OpenTextFile(config.QUERY_PATH & "RoutineFeatures.sql", ForReading).ReadAll()
+    query = fso.OpenTextFile(Config.QUERY_PATH & "RoutineFeatures.sql", ForReading).ReadAll()
     params = Array("r.RunName," & jobNum, "rt.RoutineName," & rtName)
     
     On Error GoTo RtFeaturesErr
@@ -314,21 +334,33 @@ Public Function GetEmployeeInspCount(jobNum As String, faRoutine As String, empl
     Dim query As String
     Dim params() As Variant
     
-    query = Split(fso.OpenTextFile(config.QUERY_PATH & "MLMeasurementInfo.sql", ForReading).ReadAll(), ";")(1)
+    If jobNum = "NV16974" And faRoutine = "%FA_FIRST%" Then
+        Debug.Print ("stop here")
+    End If
+    
+    query = Split(fso.OpenTextFile(Config.QUERY_PATH & "MLMeasurementInfo.sql", ForReading).ReadAll(), ";")(1)
     query = Replace(query, "{Employees}", employees)
-    params = Array("r.RunName," & jobNum, "rt.RoutineName," & faRoutine, "r.RunName," & jobNum, "rt.RoutineName," & faRoutine)
+    params = Array("r2.RunName," & jobNum, "rt2.RoutineName," & faRoutine, "r2.RunName," & jobNum, "rt2.RoutineName," & faRoutine, "r.RunName," & jobNum, "rt.RoutineName," & faRoutine, _
+                    "r2.RunName," & jobNum, "rt2.RoutineName," & faRoutine, "r2.RunName," & jobNum, "rt2.RoutineName," & faRoutine, "r.RunName," & jobNum, "rt.RoutineName," & faRoutine)
+
     
     On Error GoTo QueryError
     'If we got this far, then there should be some results
     Call SQLQuery(queryString:=query, conn_enum:=Connections.ML, params:=params)
+    
     
     GetEmployeeInspCount = ResultRecordSet.GetRows()
 
     Exit Function
     
 QueryError:
-    MsgBox "Func: GetEmployeeInspCount() Failed" & vbCrLf & jobNume & vbCrLf & faRoutine & vbCrLf & vbCrLf & Err.Description
+    If Err.Number = vbObjectError + 2000 Then
+        Dim noArr() As Variant
+        GetEmployeeInspCount = noArr
     
+    Else
+        MsgBox "Func: GetEmployeeInspCount() Failed" & vbCrLf & jobNum & vbCrLf & faRoutine & vbCrLf & vbCrLf & Err.Description
+    End If
 End Function
 
 Public Function GetAttrResults(jobNum As String, routineName As String, featureName As String) As Variant()
@@ -336,7 +368,7 @@ Public Function GetAttrResults(jobNum As String, routineName As String, featureN
     Dim query As String
     Dim params() As Variant
     
-    query = fso.OpenTextFile(config.QUERY_PATH & "GetAttrResults.sql", ForReading).ReadAll()
+    query = fso.OpenTextFile(Config.QUERY_PATH & "GetAttrResults.sql", ForReading).ReadAll()
     params = Array("r.RunName," & jobNum, "rt.RoutineName," & routineName, "f.FeatureName," & featureName)
     
     On Error GoTo RtFeaturesErr
@@ -362,7 +394,7 @@ Public Function GetVariableResults(jobNum As String, routineName As String, feat
     Dim query As String
     Dim params() As Variant
     
-    query = fso.OpenTextFile(config.QUERY_PATH & "GetVariableResults.sql", ForReading).ReadAll()
+    query = fso.OpenTextFile(Config.QUERY_PATH & "GetVariableResults.sql", ForReading).ReadAll()
     params = Array("r.RunName," & jobNum, "rt.RoutineName," & routineName, "f.FeatureName," & featureName)
     
     On Error GoTo RtFeaturesErr
@@ -389,7 +421,7 @@ Public Function GetVariableLimits(jobNum As String, routineName As String, featu
     Dim query As String
     Dim params() As Variant
     
-    query = fso.OpenTextFile(config.QUERY_PATH & "GetVariableLimits.sql", ForReading).ReadAll()
+    query = fso.OpenTextFile(Config.QUERY_PATH & "GetVariableLimits.sql", ForReading).ReadAll()
     params = Array("r.RunName," & jobNum, "rt.RoutineName," & routineName, "f.FeatureName," & featureName)
     
     On Error GoTo RtFeaturesErr
@@ -417,7 +449,7 @@ Private Function PartMLReady(partNum As String, revNum As String) As Variant
     Dim query As String
     Dim params() As Variant
     
-    query = fso.OpenTextFile(config.QUERY_PATH & "PartMLReady.sql", ForReading).ReadAll()
+    query = fso.OpenTextFile(Config.QUERY_PATH & "PartMLReady.sql", ForReading).ReadAll()
     params = Array("pr.PartNum," & partNum, "pr.RevisionNum," & revNum)
 
     Call SQLQuery(queryString:=query, conn_enum:=Connections.E10, params:=params)
@@ -435,6 +467,8 @@ End Function
 
 
 Function IsMeasurLinkJob(jobNumber As String, partNumber As String, PartRev As String, MachineType As String) As Boolean
+    On Error GoTo mlJobError
+
     If MachineType = "" Then GoTo 10
 
     Dim ReadyIndexCol As Collection
@@ -474,13 +508,13 @@ Function IsMeasurLinkJob(jobNumber As String, partNumber As String, PartRev As S
     
     For ReadyIndex = 1 To ReadyIndexCol.Count
         MachineQuerySelect = MachineQuerySelect & "ud" & ReadyIndexCol(ReadyIndex) & ".CodeDesc,"
-        MachineQueryJoins = MachineQueryJoins & " LEFT OUTER JOIN EpicorLive10.dbo.UDCodes ud" & ReadyIndexCol(ReadyIndex) & " ON pr.ProgramRsrc" & ReadyIndexCol(ReadyIndex) & "_c = ud" & ReadyIndexCol(ReadyIndex) & ".CodeID"
+        MachineQueryJoins = MachineQueryJoins & " LEFT OUTER JOIN EpicorLive11.dbo.UDCodes ud" & ReadyIndexCol(ReadyIndex) & " ON pr.ProgramRsrc" & ReadyIndexCol(ReadyIndex) & "_c = ud" & ReadyIndexCol(ReadyIndex) & ".CodeID"
         MachineQueryCriteria = MachineQueryCriteria & " AND ud" & ReadyIndexCol(ReadyIndex) & ".CodeTypeID = 'PGRMRSRC'"
     Next ReadyIndex
     
     MachineQuerySelect = Left(MachineQuerySelect, Len(MachineQuerySelect) - 1) & " "
     
-    MachineQueryFooter = " FROM EpicorLive10.dbo.PartRev pr " _
+    MachineQueryFooter = " FROM EpicorLive11.dbo.PartRev pr " _
     
     Dim machineQuery As String
     machineQuery = MachineQuerySelect & MachineQueryFooter & MachineQueryJoins & MachineQueryCriteria
@@ -497,6 +531,26 @@ Function IsMeasurLinkJob(jobNumber As String, partNumber As String, PartRev As S
     Next Machine
                         
 10
+    Exit Function
+    
+mlJobError:
+    If Err.Number = vbObjectError + 2000 Then
+        MsgBox "Error Occurred at DBConnections.IsMeasurLinkJob()" & vbCrLf & vbCrLf _
+            & "There is no machine type for one or more of the assinged program resource codes" & vbCrLf _
+            & "Double check this Part/Rev in PartEntry to make sure the assigned machines make sense" & vbCrLf & vbCrLf _
+            & "Part:" & vbTab & partNumber & vbCrLf _
+            & "Revision:" & vbTab & PartRev & vbCrLf _
+            & "Job:" & vbTab & jobNumber & vbCrLf, vbCritical
+            
+        Err.Raise Number:=vbObjectError + 1100, Description:="ML Part Info Incorrect"
+            
+        Exit Function
+    Else
+        MsgBox "Unhandled Exception Occurred at DBConnections.IsMeasurLinkJob()", vbCritical
+        Err.Raise Number:=vbObjectError + 4100, Description:="Unhandled Exception: SQL Query Failed"
+    End If
+
+
 
 End Function
 
